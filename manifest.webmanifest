@@ -1,0 +1,14 @@
+{
+  "name": "云边小卖部·数学闯关",
+  "short_name": "云边小卖部",
+  "description": "苏教版四年级上册数学同步练习 · 故事化低压力PWA",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fefbf5",
+  "theme_color": "#8b5a2b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

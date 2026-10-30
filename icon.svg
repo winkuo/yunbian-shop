@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="26" fill="#8b5a2b"/>
+  <rect x="24" y="52" width="80" height="52" rx="8" fill="#fff8ee"/>
+  <path d="M20 52 L64 22 L108 52 Z" fill="#c8a484"/>
+  <rect x="54" y="72" width="20" height="32" fill="#8b5a2b"/>
+  <text x="88" y="100" font-size="30" fill="#ffd76e">⭐</text>
+  <text x="32" y="44" font-size="14" fill="#fff8ee" font-family="sans-serif">云边小卖部</text>
+</svg>

@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>云边小卖部·数学闯关</title>
+<link rel="manifest" href="manifest.webmanifest"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#fefbf5;color:#333;line-height:1.7;font-size:16px;padding-bottom:70px}
+button{font-family:inherit}
+.view{display:none;max-width:720px;margin:0 auto;padding:14px}
+.view.on{display:block}
+h1{color:#8b5a2b;text-align:center;font-size:24px;margin:10px 0 4px}
+.sub{text-align:center;color:#a68b6b;font-size:14px;margin-bottom:12px}
+.card{background:#fff8ee;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #8b5a2b14}
+h2{color:#8b5a2b;font-size:19px;margin:4px 0 10px;border-left:5px solid #c8a484;padding-left:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{background:#8b5a2b;color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:16px;cursor:pointer}
+.btn.light{background:#c8a484}
+.btn.ghost{background:#fff;color:#8b5a2b;border:2px solid #c8a484}
+.btn.big{width:100%;padding:14px;font-size:18px}
+.btn:disabled{background:#d8cbb8;color:#fff}
+.chip{display:inline-block;background:#f6e9da;border-radius:99px;padding:4px 12px;margin:4px 6px 0 0;font-size:14px}
+.chip b{color:#8b5a2b}
+.chip .x{color:#c92828;font-weight:bold;cursor:pointer;margin-left:6px}
+/* 首页关卡 */
+.lv{background:#fff;border-radius:16px;padding:14px 16px;margin:10px 0;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px #8b5a2b12;border:2px solid transparent}
+.lv.done{border-color:#bcd9a8;background:#f7fbf2}
+.lv.locked{opacity:.55}
+.lv .no{width:44px;height:44px;border-radius:12px;background:#f6e9da;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.lv.done .no{background:#bcd9a8}
+.lv .nm{font-size:17px;font-weight:bold;color:#604028}
+.lv .un{font-size:13px;color:#a68b6b}
+.lv .st{margin-left:auto;flex-shrink:0;font-size:13px;color:#8b5a2b}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.star-badge{background:#8b5a2b;color:#fff;border-radius:99px;padding:6px 16px;font-size:15px}
+.star-badge b{font-size:18px}
+/* 答题页 */
+.q-card{background:#fff;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 3px 10px #8b5a2b14}
+.q-meta{display:flex;justify-content:space-between;color:#a68b6b;font-size:13px;margin-bottom:8px}
+.q-text{font-size:20px;color:#4a3418;line-height:1.8}
+.ans-row{display:flex;gap:10px;margin-top:14px}
+.ans{flex:1;border:2px solid #c8a484;border-radius:12px;padding:12px 14px;font-size:20px;color:#4a3418;background:#fffdf8;outline:none;min-width:0}
+.ans:focus{border-color:#8b5a2b}
+.tools{display:flex;gap:10px;margin-top:12px}
+.tier{border-radius:12px;padding:10px 14px;margin-top:10px;font-size:15px;line-height:1.7;display:none}
+.tier.on{display:block}
+.t1{background:#eaf6e4;color:#3d6b2f}
+.t2{background:#fdf0dd;color:#8a5a17}
+.t3{background:#e3f0fa;color:#2d5a86}
+.tier .tt{font-weight:bold;margin-bottom:2px}
+/* 弹层 */
+.mask{position:fixed;inset:0;background:#3a2a1470;display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.mask.on{display:flex}
+.pop{background:#fff8ee;border-radius:18px;padding:20px;max-width:340px;width:100%;text-align:center;animation:pop .18s ease}
+@keyframes pop{from{transform:scale(.9);opacity:.5}to{transform:scale(1);opacity:1}}
+.pop .emoji{font-size:44px}
+.pop .msg{font-size:17px;color:#604028;margin:8px 0 14px}
+/* 插画屋 / 储藏筐 */
+.illo{background:#fff;border-radius:16px;padding:16px;text-align:center;margin:10px 0;border:2px dashed #e2d4c2}
+.illo .art{font-size:38px;letter-spacing:4px;line-height:1.4}
+.illo .cap{font-size:14px;color:#a68b6b;margin-top:6px}
+.illo.off{opacity:.35}
+/* 兑换台 */
+.zmy{background:#fff;border:2px solid #ff444440;border-radius:14px;overflow:hidden;margin:12px 0}
+.zmy-img{height:170px;background:#ffe9e9;display:flex;align-items:center;justify-content:center;color:#c92828;font-weight:bold;font-size:15px;background-size:cover;background-position:center}
+.zmy-txt{padding:14px}
+.zmy-txt h4{color:#c92828;font-size:17px;margin-bottom:6px}
+.zmy-txt p{font-size:14px;color:#555;margin:6px 0}
+.panel{display:flex;gap:8px;margin:12px 0}
+.panel .p{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center}
+.panel .p b{display:block;font-size:20px;color:#8b5a2b}
+.panel .p span{font-size:12px;color:#a68b6b}
+.app-item{background:#fff;border-radius:12px;padding:12px 14px;margin:8px 0;font-size:14px}
+.app-item .st{float:right;font-weight:bold}
+.st-pending{color:#8a5a17}.st-approved{color:#3d6b2f}.st-rejected{color:#c92828}.st-expired{color:#a68b6b}
+.voucher{background:#fff;border:3px double #8b5a2b;border-radius:14px;padding:18px;position:relative}
+.voucher .vt{text-align:center;font-size:19px;font-weight:bold;color:#8b5a2b;margin-bottom:10px}
+.voucher .vr{font-size:15px;color:#4a3418;margin:4px 0}
+.voucher .zmy-mini{height:70px;border-radius:10px;background:#ffe9e9;display:flex;align-items:center;justify-content:center;color:#c92828;font-size:13px;background-size:cover;background-position:center;margin:10px 0}
+.voucher .rule{font-size:12px;color:#a68b6b;border-top:1px dashed #e2d4c2;margin-top:10px;padding-top:8px}
+/* 奖状 */
+.cert{background:#fff;border:6px double #8b5a2b;border-radius:16px;padding:26px 18px;text-align:center}
+.cert .t{font-size:26px;color:#8b5a2b;font-weight:bold;letter-spacing:6px}
+.cert .b{font-size:16px;color:#4a3418;margin:14px 0;line-height:2}
+/* 草稿板 */
+.pad-wrap{text-align:center}
+#pad{background:#fff;border:2px solid #e2d4c2;border-radius:12px;touch-action:none;max-width:100%}
+/* 设置 */
+.opt{display:flex;align-items:center;gap:10px;padding:9px 4px;font-size:16px;color:#4a3418}
+.opt input[type=radio]{width:18px;height:18px;accent-color:#8b5a2b}
+input.num{width:90px;border:2px solid #e2d4c2;border-radius:8px;padding:6px 10px;font-size:15px;color:#4a3418}
+.sw{position:relative;width:52px;height:28px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;background:#d8cbb8;border-radius:99px;transition:.2s}
+.sw i:before{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+.sw input:checked+i{background:#8b5a2b}
+.sw input:checked+i:before{left:27px}
+/* 常驻角标 */
+.version-tag{position:fixed;right:16px;bottom:14px;background:#8b5a2b;color:#fff;padding:3px 12px;border-radius:99px;font-size:13px;z-index:99;opacity:.85}
+.fullscreen-btn{position:fixed;right:64px;bottom:14px;background:#c8a484;color:#fff;border:none;padding:5px 12px;border-radius:99px;font-size:13px;cursor:pointer;z-index:99;opacity:.9}
+.back-home{display:inline-block;margin-bottom:8px;color:#8b5a2b;font-size:15px;cursor:pointer}
+.toast{position:fixed;left:50%;top:16%;transform:translateX(-50%);background:#3a2a14;color:#fff;padding:10px 20px;border-radius:10px;font-size:15px;z-index:99;display:none;max-width:80%;text-align:center}
+.backbar{position:fixed;left:0;right:0;bottom:0;background:#fff8ee;border-top:1px solid #e2d4c2;display:none;justify-content:center;padding:10px;z-index:40}
+.backbar.on{display:flex}
+.empty-tip{text-align:center;color:#a68b6b;padding:30px 0}
+</style>
+</head>
+<body>
+
+<button class="fullscreen-btn" id="fsBtn">⛶ 全屏</button>
+<div class="version-tag">v1.3</div>
+<div class="toast" id="toast"></div>
+
+<!-- ===== 首页：小卖部院子 ===== -->
+<div class="view on" id="v-home">
+  <h1>🏮 云边小卖部</h1>
+  <div class="sub">外婆的院子 · 数学帮工日报</div>
+  <div class="top">
+    <span id="modeTag" class="chip"></span>
+    <span class="star-badge">⭐ <b id="starTop">0</b> 星光</span>
+  </div>
+  <div class="row" style="margin:8px 0">
+    <button class="btn light" id="btnSetting">👨‍🍳 外婆的设置</button>
+    <button class="btn light" id="btnGallery">🖼️ 插画屋</button>
+    <button class="btn light" id="btnExchange">🏪 外婆兑换台</button>
+    <button class="btn light" id="btnStorage">🧺 储藏筐</button>
+    <button class="btn light" id="btnCert" style="display:none">📜 奖状</button>
+  </div>
+  <div id="lvList"></div>
+  <div class="sub" style="margin-top:14px">答对 1 题得 1 颗星光 · 答错不扣 · 刘十三会帮你</div>
+</div>
+
+<!-- ===== 家长设置 ===== -->
+<div class="view" id="v-setting">
+  <span class="back-home" onclick="showView('home')">← 回院子</span>
+  <div class="card">
+    <h2>难度档位</h2>
+    <label class="opt"><input type="radio" name="diff" value="easy">🌱 简单帮工（默认：题干短、数字规整）</label>
+    <label class="opt"><input type="radio" name="diff" value="hard">⭐ 能干帮工（进阶：有干扰条件，像单元卷）</label>
+  </div>
+  <div class="card">
+    <h2>激励模式（三选一）</h2>
+    <label class="opt"><input type="radio" name="mode" value="A">🏪 模式A：星光兑换赵一鸣零食</label>
+    <label class="opt"><input type="radio" name="mode" value="B">🧺 模式B：虚拟物资收集彩蛋</label>
+    <label class="opt"><input type="radio" name="mode" value="C">✏️ 模式C：纯刷题，无奖励</label>
+  </div>
+  <div class="card">
+    <h2>关卡顺序锁</h2>
+    <div class="opt"><span>顺序闯关（通关一关解锁下一关）</span>
+      <label class="sw" style="margin-left:auto"><input type="checkbox" id="swLock"><i></i></label></div>
+    <div class="opt"><span>星光集市单独放行（不受主线约束）</span>
+      <label class="sw" style="margin-left:auto"><input type="checkbox" id="swMarket"><i></i></label></div>
+    <p style="font-size:13px;color:#a68b6b">关掉顺序锁＝期末复习，全部关卡随便挑。</p>
+  </div>
+  <div class="card" id="exParamCard">
+    <h2>兑换参数（模式A）</h2>
+    <div class="opt">兑换比例：<input class="num" id="inRate" type="number" min="1" max="100"> 星光 = 1 元</div>
+    <div class="opt">单次最大额度：<input class="num" id="inMax" type="number" min="1" max="200"> 元</div>
+    <div class="opt">兑换冷却：<input class="num" id="inCool" type="number" min="0" max="60"> 天</div>
+    <div style="margin-top:8px;font-size:14px;color:#4a3418">零食黑名单（点了 ✕ 删除，输入框可添加）：</div>
+    <div id="banList" style="margin:6px 0"></div>
+    <div class="ans-row"><input class="ans" id="inBan" placeholder="如：辣条" style="flex:1">
+      <button class="btn light" id="btnAddBan">添加</button></div>
+  </div>
+</div>
+
+<!-- ===== 答题页 ===== -->
+<div class="view" id="v-quiz">
+  <div class="q-card">
+    <div class="q-meta"><span id="qFrom"></span><span id="qProg"></span></div>
+    <div class="q-text" id="qText"></div>
+    <div class="tier t1" id="tier1"><div class="tt">💡 刘十三的提示</div><div id="tier1txt"></div></div>
+    <div class="tier t2" id="tier2"><div class="tt">🎴 锦囊卡片</div><div id="tier2txt"></div></div>
+    <div class="tier t3" id="tier3"><div class="tt">📖 示范思路（照着想，答案自己填）</div><div id="tier3txt"></div></div>
+    <div class="ans-row">
+      <input class="ans" id="ansInput" placeholder="写下你的答案" autocomplete="off">
+      <button class="btn" id="btnAns">提交</button>
+    </div>
+    <div class="tools">
+      <button class="btn light" id="btnRead">🔊 朗读题目</button>
+      <button class="btn light" id="btnPad">✏️ 草稿板</button>
+      <button class="btn ghost" id="btnQuit">回院子</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 关卡结算 ===== -->
+<div class="view" id="v-result">
+  <div class="card" style="text-align:center">
+    <div class="emoji" id="resArt" style="font-size:52px"></div>
+    <h2 id="resTitle" style="border:none;justify-content:center"></h2>
+    <p id="resMsg" style="color:#604028"></p>
+    <div class="row" style="justify-content:center;margin-top:14px">
+      <button class="btn" id="resNext" style="display:none">下一关 →</button>
+      <button class="btn light" onclick="goHome()">回院子</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 插画屋 ===== -->
+<div class="view" id="v-gallery">
+  <span class="back-home" onclick="showView('home')">← 回院子</span>
+  <div class="card"><h2>🖼️ 插画收藏屋</h2><p style="font-size:13px;color:#a68b6b">每通关一关解锁一张插画（和奖励开关无关，都能收齐）。</p></div>
+  <div id="galList"></div>
+</div>
+
+<!-- ===== 外婆兑换台（模式A） ===== -->
+<div class="view" id="v-exchange">
+  <span class="back-home" onclick="showView('home')">← 回院子</span>
+  <div class="zmy">
+    <div class="zmy-img" id="zmyImg">【这里放赵一鸣门店实拍图 / 门头照片】</div>
+    <div class="zmy-txt">
+      <h4>🏪 赵一鸣零食（家门口量贩零食店）</h4>
+      <p>赵一鸣是平价量贩零食连锁，店里货架满满当当，上千种零食、奶制品、海苔、肉干、饮品可以自选，干净明亮，可以推着小购物筐慢慢挑选。</p>
+      <p>✅ 我们约定：攒够星光，就可以让家长陪着，到这家店里挑选喜欢的零食！</p>
+      <p>⚠️ 温馨约定：不可以选购黑名单里面的零食，优先选酸奶、坚果、海苔这类更健康的零食。</p>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="p"><b id="stTotal">0</b><span>总星光</span></div>
+    <div class="p"><b id="stLock">0</b><span>锁定中</span></div>
+    <div class="p"><b id="stAvail">0</b><span>可用</span></div>
+  </div>
+  <div class="card">
+    <h2>提交兑换申请</h2>
+    <p style="font-size:14px;color:#604028" id="exRule"></p>
+    <div class="ans-row">
+      <input class="ans" id="inMoney" type="number" placeholder="想兑换的金额（元）">
+      <button class="btn" id="btnApply">申请</button>
+    </div>
+    <p style="font-size:12px;color:#a68b6b;margin-top:6px" id="coolTip"></p>
+  </div>
+  <div class="card">
+    <h2>家长审核</h2>
+    <div id="reviewList"></div>
+  </div>
+  <div class="card">
+    <h2>兑换历史</h2>
+    <div id="hisList"></div>
+  </div>
+</div>
+
+<!-- ===== 兑换凭证 ===== -->
+<div class="view" id="v-voucher">
+  <span class="back-home" onclick="showView('exchange')">← 回兑换台</span>
+  <div class="voucher" id="voucherBox"></div>
+  <p style="font-size:12px;color:#a68b6b;margin-top:8px;text-align:center">凭证仅为家庭内部记账奖励，门店不识别此券，无需与门店对接。截图保存即可。</p>
+</div>
+
+<!-- ===== 储藏筐（模式B） ===== -->
+<div class="view" id="v-storage">
+  <span class="back-home" onclick="showView('home')">← 回院子</span>
+  <div class="card"><h2>🧺 储藏筐</h2><p style="font-size:13px;color:#a68b6b">答对题目有几率掉落小店物资，攒起来看看能凑齐一屋子吗。</p></div>
+  <div id="goodsList"></div>
+</div>
+
+<!-- ===== 奖状 ===== -->
+<div class="view" id="v-cert">
+  <div class="cert">
+    <div class="t">奖 状</div>
+    <div class="b">
+      <b id="certName"></b> 同学：<br>
+      在《云边小卖部·数学闯关》中帮外婆理货、盘点、算账，<br>
+      走过饮料仓库、糖果分装台、货架、台账、接待台、算账桌和雨棚，<br>
+      全部七关顺利通关，荣获——<br>
+      <b style="color:#c92828;font-size:20px">⭐ 优秀帮工 ⭐</b><br>
+      <span style="font-size:13px;color:#a68b6b">云边小镇 · <span id="certDate"></span></span>
+    </div>
+  </div>
+  <div class="row" style="justify-content:center;margin-top:14px">
+    <button class="btn light" onclick="showView('home')">回院子</button>
+  </div>
+</div>
+
+<!-- 夸奖弹层 -->
+<div class="mask" id="m-praise"><div class="pop">
+  <div class="emoji" id="prEmoji">🌟</div><div class="msg" id="prMsg"></div>
+  <button class="btn" id="prBtn">继续</button>
+</div></div>
+
+<!-- 草稿板弹层 -->
+<div class="mask" id="m-pad"><div class="pop pad-wrap" style="max-width:420px">
+  <div class="msg" style="margin:0 0 8px">✏️ 草稿板（随便写写画画）</div>
+  <canvas id="pad" width="360" height="300"></canvas>
+  <div class="row" style="justify-content:center;margin-top:10px">
+    <button class="btn light" id="padClear">清空</button>
+    <button class="btn" id="padClose">收起</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ================= 配置 ================= */
+var CONFIG = {
+  childName: "蓁宝",                 // 凭证与奖状上的名字
+  zmyImg: "",                        // 赵一鸣门店照片：填图片URL，或把本地图片与本文件放一起后填 "zmy.jpg"
+  roundCount: 6,                     // 每轮抽题数量（题池储备远多于此）
+  dropChance: 0.3                    // 模式B答对掉落物资概率
+};
+
+/* ================= 关卡与题池 =================
+   格式：[题干, 答案(数字/文本/同义数组), 提示, 锦囊, 示范思路]
+   规范：提示/锦囊/示范只引导思路，一律不含最终得数 */
+var LEVELS = [
+  {id:"L1", name:"清点饮料仓库", unit:"升和毫升", art:"🥤🧃🫙", cap:"饮料仓库插画"},
+  {id:"L2", name:"分装糖果礼包", unit:"两、三位数除以两位数", art:"🍬🎁📦", cap:"糖果分装台插画"},
+  {id:"L3", name:"货架摆货观察", unit:"观察物体（三视图）", art:"📦👀🧊", cap:"货架三视图插画"},
+  {id:"L4", name:"小卖部营业台账", unit:"统计表和条形统计图", art:"📒📊💰", cap:"记账台账插画"},
+  {id:"L5", name:"接待镇上客人", unit:"解决问题的策略（列表整理）", art:"🧑‍🌾🫖📋", cap:"接待台插画"},
+  {id:"L6", name:"傍晚算账记账", unit:"整数四则混合运算", art:"🧮🕯️📜", cap:"算账桌插画"},
+  {id:"L7", name:"搭建遮阳雨棚", unit:"垂线和平行线", art:"⛺📏🌤️", cap:"雨棚插画"},
+  {id:"MK", name:"星光集市", unit:"全册综合复习", art:"⭐🏮🎪", cap:"优秀帮工奖状"}
+];
+
+var POOLS = {
+L1:{
+easy:[
+["1瓶橙汁500毫升，4瓶一共多少毫升？","2000","每瓶都是500毫升，求4瓶一共","4个500相加，或用乘法","500×4＝多少毫升"],
+["2000毫升是多少升？","2","想一想毫升和升之间的进率","1000毫升＝1升，看2000里有几个1000","2000÷1000＝多少升"],
+["3升是多少毫升？","3000","升换算成毫升要乘进率","1升＝1000毫升，3升就是3个1000","3×1000＝多少毫升"],
+["一壶水2升，倒满一个500毫升的杯子后，壶里还剩多少毫升？","1500","先把2升换算成毫升再减","2升＝2000毫升，倒出500毫升","2000－500＝多少毫升"],
+["一瓶酸奶250毫升，喝了一半，喝了多少毫升？","125","一半就是把总量平均分成2份","250÷2","250÷2＝多少毫升"],
+["商店进了8瓶1升的矿泉水，一共有多少升？","8","每瓶1升，8瓶就是8个1升","1×8","1×8＝多少升"],
+["一个汤碗容量大约400毫升，5碗汤一共多少毫升？","2000","5个400是多少","400×5，也可以连加5次","400×5＝多少毫升"],
+["1升牛奶倒出300毫升，还剩多少毫升？","700","先把1升换算成毫升","1升＝1000毫升，1000－300","1000－300＝多少毫升"],
+["一大瓶可乐2升，每人倒400毫升，最多能倒几杯？","5","先统一单位，再看里面有几个400","2升＝2000毫升，2000÷400","2000÷400＝多少杯"],
+["4升是多少毫升？","4000","升换算成毫升乘进率","1升＝1000毫升，4升就是4个1000","4×1000＝多少毫升"]
+],
+hard:[
+["一个水壶能装1500毫升水，倒满2个500毫升的杯子后，还剩多少毫升？","500","先算2个杯子一共装走多少","2×500，再用1500去减","1500－500×2＝多少毫升"],
+["一瓶果汁600毫升，喝了一些后剩250毫升，喝了多少毫升？","350","原来的减剩下的","600－250","600－250＝多少毫升"],
+["超市运来3箱饮料，每箱6瓶，每瓶250毫升，一共多少毫升？","4500","先算总瓶数，再算总毫升","3×6＝18瓶，再乘250","250×3×6＝多少毫升"],
+["量杯装水800毫升，茶壶装水2升，茶壶比量杯多装多少毫升？","1200","单位不同先统一","2升＝2000毫升，2000－800","2000－800＝多少毫升"],
+["把4升果汁分装到500毫升的瓶子里，能装满几瓶？","8","先统一单位再做除法","4升＝4000毫升，4000÷500","4000÷500＝多少瓶"],
+["一桶油5升，用去1500毫升，还剩多少毫升？","3500","升和毫升先统一","5升＝5000毫升，5000－1500","5000－1500＝多少毫升"],
+["医生建议每天喝6杯水，每杯250毫升，一天共喝多少毫升？","1500","6个250是多少","250×6","250×6＝多少毫升"],
+["甲瓶装水300毫升，乙瓶的水是甲的2倍多100毫升，乙瓶装多少毫升？","700","先算2倍，再多加的部分","300×2，再加100","300×2＋100＝多少毫升"],
+["水缸蓄水20升，水泵每分钟抽出500毫升，5分钟共抽出多少毫升？","2500","求5个500是多少","500×5","500×5＝多少毫升"],
+["酱油有4000毫升，醋有3升，酱油比醋多多少毫升？","1000","把醋换算成毫升再比较","3升＝3000毫升，4000－3000","4000－3000＝多少毫升"]
+]},
+L2:{
+easy:[
+["84÷21＝？","4","想21×几接近84","试商：21×4是84吗","21×4＝84，所以商是几"],
+["120÷20＝？","6","想20×几＝120","用乘法口诀帮忙","20×6＝120"],
+["96÷32＝？","3","试商32×几接近96","32×3是不是正好","32×3＝96"],
+["270÷30＝？","9","同时去掉末尾的0再想","27÷3","27÷3＝9"],
+["有96颗糖，每袋装32颗，能装几袋？","3","96里面有几个32","96÷32","96÷32＝几袋"],
+["350÷70＝？","5","末尾的0可以同时划去","35÷7","35÷7＝5"],
+["450里面有（）个50。","9","450÷50","想50×9","450÷50＝几"],
+["一箱苹果60个，4箱一共多少个？","240","4个60是多少","60×4","60×4＝多少个"],
+["240÷60＝？","4","同时去掉一个0","24÷6","24÷6＝4"],
+["商店有180瓶饮料，每箱装30瓶，能装几箱？","6","180里面有几个30","180÷30","180÷30＝几箱"]
+],
+hard:[
+["612÷34＝？","18","先试商3，再调整","34×10＝340，612－340还剩不少，商是两位数","34×18＝612"],
+["900÷25＝？","36","想25×4＝100来凑","900里有几个100，再乘4","25×36＝900"],
+["王师傅做了312块月饼，每盒装26块，能装满多少盒？","12","312÷26","先试商1放在十位","26×12＝312"],
+["840÷40＝？","21","同时去掉一个0再算","84÷4","84÷4＝21"],
+["学校买来375本书，平均分给15个班，每班多少本？","25","375÷15","先看十位：15×2＝30","15×25＝375"],
+["一辆汽车每小时行60千米，行240千米要几小时？","4","240里面有几个60","240÷60","240÷60＝几小时"],
+["756÷(2×27)＝？","14","先算小括号里的除数","2×27＝54，再算756÷54","756÷54＝几"],
+["商店4天卖出720瓶汽水，平均每天卖多少瓶？","180","总量÷天数","720÷4","720÷4＝多少瓶"],
+["矿泉水每箱24瓶，进了26箱，一共多少瓶？","624","24×26，可以先算24×25再加24","24×26＝24×6＋24×20","24×6＋24×20＝多少瓶"],
+["被除数是640，除数是32，商是多少？","20","640÷32","先试商2放在十位","32×20＝640"]
+]},
+L3:{
+easy:[
+["用4个同样大的正方体拼成横着的一排，从前面看到几个小正方形？","4","横着一排，前面正好全看到","从前面看，一个正方体贡献1个正方形","一排4个，从前面就是4个并排"],
+["一个正方体，从一个方向看过去，一次最多能看到几个面？","3","拿着魔方想一想","最多时三个面两两相邻","例如看到上面、前面、右面"],
+["从上面看一个正方体，看到的形状是什么？","正方形","正方体的每个面都一样","每个面都是什么形状","每个面都是正方形"],
+["用2个同样的正方体横着拼在一起，从前面看到几个正方形？","2","一排2个","从前面每个都看得见","2个并排"],
+["5个同样的正方体竖着摞起来，从侧面看到几个正方形？","5","竖着摞，侧面看是一列","一列几个就是几个","从侧面看到5个竖着排"],
+["观察一个长方体礼盒，一次最多能看到它的几个面？","3","想一想墙角的位置","长方体最多和正方体一样","最多同时看到3个面"],
+["用6个正方体摆成上下两层，每层3个一排对齐，从上面看到几个正方形？","3","上面一层挡住了下面","从上面只能看到最上层","看到一排3个"],
+["一个球放在桌上，从任何方向看到的形状都是什么？","圆形","球很圆","球从哪儿看都一样","都是圆形"],
+["用4个正方体拼成横着的一排，从上面看到几个正方形？","4","和从前面看一样是一排","一排几个看几个","从上面也是4个并排"],
+["一个魔方（正方体）有几个面？","6","数一数","上下前后左右","正方体有6个面"]
+],
+hard:[
+["用同样大的正方体搭一个物体：从前面看到一行3个正方形，从右面看到一行2个。最少用几个正方体？","4","前面一行3个说明一排3列，右面2个说明前后有2排","第2排可以只放1个，躲在拐角后面","3＋1＝几个"],
+["用3个正方体拼成L形（拐角摆放），从上面看到几个正方形？","3","从上面看，只要摆了的都数","上面不遮挡","3个都看得见"],
+["一个物体从前面和从上面看到的都是一行2个正方形，它最少由几个正方体组成？","2","一行2个排成一排即可满足","一排2个从前后上都看2个","最少2个"],
+["4个正方体摆成2×2平铺在地上，从上面看到几个正方形？","4","平铺没有遮挡","上面全看得见","2×2＝4个"],
+["用同样大的正方体摆一个物体，从前面看是一行3个，从上面看也是一行3个，最少几个正方体？","3","一排3个就同时满足两个方向","摆成横着的一排试试","3个一排"],
+["6个正方体摆成两层：下层4个摆2×2，上层2个放在对角上，从上面看到几个正方形？","4","上层挡不住下层露出的位置","下层2×2有4个位置，上面都有覆盖或露出","从上面看到2×2共4个"],
+["一个长方体物体放在桌上，一次最多能同时看到几个面？","3","和正方体一样想墙角","相邻的三个面","最多3个面"],
+["用5个正方体搭：下层4个摆2×2，上层1个搭在角上。从左面看到几个正方形？","3","左面看是2列，各列最高层数是2和1","第一列2层，第二列1层，加起来","2＋1＝3个"]
+]},
+L4:{
+easy:[
+["小卖部周一卖冰棍20根，周二25根，周三30根，三天一共卖多少根？","75","三天数量连加","20＋25＋30","20＋25＋30＝多少根"],
+["周一卖汽水12瓶，周二比周一多卖8瓶，周二卖多少瓶？","20","比12多8","12＋8","12＋8＝多少瓶"],
+["四个小组收集易拉罐，分别8个、10个、7个、11个，一共多少个？","36","四个数连加","8＋10＋7＋11","按顺序加：18、25、36"],
+["卖面条：前3天每天15包，后4天每天20包，一周共卖多少包？","125","分开算再合起来","15×3，20×4，再相加","45＋80＝多少包"],
+["三人跳绳分别98个、100个、102个，平均每人跳多少个？","100","先求总数再除以3","98＋100＋102，再÷3","300÷3＝多少个"],
+["一周里晴天3天、雨天2天、阴天2天，晴天比雨天多几天？","1","3和2比","3－2","3－2＝几天"],
+["班里喜欢橙汁的有12人，喜欢牛奶的是橙汁的2倍少4人，喜欢牛奶多少人？","20","先算2倍再减4","12×2，再减4","12×2－4＝多少人"],
+["台账上星期一收入45元，星期二是星期一的2倍，星期二收入多少元？","90","2倍就是乘2","45×2","45×2＝多少元"]
+],
+hard:[
+["一周卖汽水：前5天每天30瓶，后2天每天45瓶，一周共卖多少瓶？","240","两段各算各的","30×5，45×2，再相加","150＋90＝多少瓶"],
+["四个季度用水量：48吨、52吨、45吨、55吨，全年一共多少吨？","200","四个数连加","48＋52正好100，45＋55正好100","100＋100＝多少吨"],
+["乙组4人共做128朵花，平均每人做多少朵？","32","总数÷人数","128÷4","128÷4＝多少朵"],
+["台账显示上午收入86元，下午收入94元，全天收入多少元？","180","上午加下午","86＋94","86＋94＝多少元"],
+["某周每天卖包子个数：60、55、65、70、60、80、70，这周共卖多少个？","460","7个数连加","两个60、两个70成对先加","60×2＋70×2＋55＋65＋80"],
+["掷沙包成绩：25米、22米、28米、25米，平均每人掷多少米？","25","总数÷人数","100÷4","(25＋22＋28＋25)÷4"],
+["4天卖苹果：第一天20千克，第二天比第一天多5千克，第三天与第二天同样多，第四天25千克，共多少千克？","95","先把四天各是多少写清楚","第一天20，第二天25，第三天25，第四天25","20＋25＋25＋25"],
+["全班40人捐款，平均每人捐5元，全班共捐多少元？","200","平均数×人数","40×5","40×5＝多少元"]
+]},
+L5:{
+easy:[
+["小明买3支钢笔花了15元，买5支同样的钢笔要多少元？","25","先求1支多少钱","15÷3＝1支的价，再×5","(15÷3)×5＝多少元"],
+["2箱苹果60元，4箱同样的苹果多少元？","120","先求1箱的价钱","60÷2，再×4","(60÷2)×4＝多少元"],
+["每小时加工20个零件，6小时加工多少个？","120","每小时×小时数","20×6","20×6＝多少个"],
+["一辆汽车每小时行80千米，3小时行多少千米？","240","80×3","速度×时间＝路程","80×3＝多少千米"],
+["5本练习本30元，8本同样的练习本多少元？","48","先求1本的价钱","30÷5，再×8","(30÷5)×8＝多少元"],
+["3袋大米共150千克，5袋这样的大米多少千克？","250","先求1袋的重量","150÷3，再×5","(150÷3)×5＝多少千克"],
+["每4个蛋糕装一盒，28个蛋糕能装几盒？","7","28里面有几个4","28÷4","28÷4＝几盒"],
+["40个同学排队，每行8人，可以排几行？","5","40里面有几个8","40÷8","40÷8＝几行"]
+],
+hard:[
+["3头牛一天吃36千克草，5头牛一天吃多少千克？","60","先求1头牛一天吃多少","36÷3，再×5","(36÷3)×5＝多少千克"],
+["4辆卡车一次运货32吨，7辆同样的卡车一次运多少吨？","56","先求1辆运多少","32÷4，再×7","(32÷4)×7＝多少吨"],
+["小华看一本120页的书，每天看15页，看了4天，还剩多少页没看？","60","先算已经看了多少页","15×4，再用120减","120－15×4＝多少页"],
+["商店运来5箱橘子，每箱24个，卖出70个，还剩多少个？","50","先算一共运来多少","24×5，再减70","24×5－70＝多少个"],
+["一件上衣60元，一条裤子40元，买3套一共多少元？","300","先算1套多少钱","一套是60＋40，再×3","(60＋40)×3＝多少元"],
+["张阿姨买2千克苹果和3千克梨共付30元，苹果每千克6元，梨每千克多少元？","6","先算苹果花了多少钱","2×6，再用30减，最后除以3","(30－2×6)÷3＝多少元"],
+["工程队修路，前3天每天修40米，后4天每天修50米，一共修多少米？","320","两段分别算","40×3，50×4，再相加","120＋200＝多少米"],
+["每盒装6个乒乓球，每箱装8盒，5箱一共多少个乒乓球？","240","先算一箱多少个","6×8，再×5","6×8×5＝多少个"]
+]},
+L6:{
+easy:[
+["25＋15×4＝？","85","先乘后加","15×4先算","15×4＋25"],
+["(30－12)÷6＝？","3","先算小括号","30－12，再除以6","(30－12)÷6"],
+["8×7－20＝？","36","先乘后减","8×7先算","56－20"],
+["100－36÷4＝？","91","先除后减","36÷4先算","100－36÷4"],
+["5×(14＋6)＝？","100","先算小括号里的和","14＋6，再×5","5×(14＋6)"],
+["72÷8＋10＝？","19","先除后加","72÷8先算","9＋10"],
+["90－(25＋15)＝？","50","先算小括号","25＋15，再减","90－40"],
+["6×(9－4)＝？","30","先算小括号","9－4，再×6","6×5"]
+],
+hard:[
+["350－(120＋80)÷4＝？","300","先算括号，再算除法，最后减","括号里200，200÷4，再350减","350－(120＋80)÷4"],
+["18×5＋120÷6＝？","110","乘和除先各算各的","90和20，再相加","18×5＋120÷6"],
+["(450＋150)÷(25×4)＝？","6","两个括号各算各的","600和100，再相除","600÷100"],
+["240÷(96－16×5)＝？","15","括号里先乘后减","16×5＝80，96－80","240÷16"],
+["72×5－72×4＝？","72","5个72减4个72","还剩几个72","72×(5－4)"],
+["(125－25)×8÷100＝？","8","先算括号，再按顺序","100×8，再÷100","800÷100"],
+["1000－(320＋280)÷10＝？","940","先括号，再除，最后减","600÷10＝60","1000－60"],
+["甲数是45，乙数比甲数的2倍少15，乙数是多少？","75","先算甲数的2倍，再少15","45×2，再减15","45×2－15"]
+]},
+L7:{
+easy:[
+["黑板的长边和短边相交成直角，它们互相（）。","垂直","相交成直角的两条直线叫什么","想长方形的角","相交成直角＝互相垂直"],
+["长方形的对边，延长后永不相交，它们互相（）。","平行","同一平面内不相交的两条直线","对边的关系","不相交＝平行"],
+["两条直线相交成直角，这两条直线互相（）。","垂直","关键看夹角是不是90度","直角＝？","成直角的两条直线互相垂直"],
+["在同一平面内不相交的两条直线互相（）。","平行","这是平行线的定义","永不相交","不相交的两条直线互相平行"],
+["课桌面相邻的两条边互相（）。","垂直","相邻两边夹的是直角","看四个角","夹直角＝垂直"],
+["正方形的四个角都是（）。","直角","每个角90度","正方形角的特点","四个角都是直角"],
+["从直线外一点向这条直线画线段，其中与直线垂直的那条最（）。","短","点到直线的线段谁最短","垂直的那条和别的比","垂直线段最短"],
+["钟面上1点整，时针和分针所成的角是锐角还是钝角？","锐","比直角小还是大","1点时两针相距1大格","1大格是30度，比90小，是锐角"]
+],
+hard:[
+["钟面上3点整，时针和分针所成的角是什么角？",["直角","90度","90°"],"3点时两针相距3大格","1大格30度，3大格是多少","30×3＝90度，是直角"],
+["钟面上6点整，时针和分针正好成一条直线，这样的角叫（）。","平角","成一条直线的角","180度的角","两针成直线＝平角"],
+["一个长方形中，有（）组对边互相平行。","2","上下一组，左右一组","数一数几组对边","上下、左右共2组"],
+["两条平行线之间的距离处处（）。","相等","量一量任意位置的宽度","平行线间怎么量都一样","处处相等"],
+["从一点出发，可以画（）条射线。","无数","想一个点向四面八方","方向可以随意多","能画无数条"],
+["长方形相邻的两条边互相（）。","垂直","相邻两边夹直角","看长方形的角","相邻边互相垂直"],
+["角的两边成一条直线，这样的角叫（）。","平角","180度的角","一边转成直线","两边成直线＝平角"],
+["用量角器量角时，角的顶点要对准量角器的（）。",["中心","中心点","0刻度线","圆心"],"量角器摆放的关键位置","角顶点和量角器哪个点对齐","顶点对中心"],
+["把一个平角分成两个相等的角，每个角是多少度？","90","平角180度，对半分","180÷2","180÷2＝多少度"],
+["直角是（）度。","90","三角板上那个方方的角","它比平角小一半","直角＝平角的一半"]
+]},
+MK:{
+easy:[
+["2升是多少毫升？","2000","升与毫升的进率","1升＝1000毫升","2×1000"],
+["96÷24＝？","4","试商24×几","24×4是不是正好","96÷24"],
+["15×6＋10＝？","100","先乘后加","90再加10","15×6＋10"],
+["4本本子20元，7本同样的本子多少元？","35","先求1本的价钱","20÷4，再×7","(20÷4)×7"],
+["长方形相邻的两条边互相（）。","垂直","相邻两边夹什么角","90度","夹直角＝垂直"],
+["一瓶牛奶250毫升，4瓶一共多少毫升？","1000","4个250","250×4","250×4＝多少毫升"],
+["(24＋16)÷8＝？","5","先算小括号","40÷8","(24＋16)÷8"],
+["5个正方体一字排开，从前面看到几个正方形？","5","一排5个全看得见","几个数几个","5个并排"],
+["三天卖苹果：20千克、25千克、30千克，一共多少千克？","75","三个数连加","20＋25＋30","75"],
+["60÷30＝？","2","同时去掉0","6÷3","6÷3＝2"]
+],
+hard:[
+["4升水倒进500毫升的瓶子里，能装满几瓶？","8","统一单位再除","4升＝4000毫升","4000÷500"],
+["720÷(2×36)＝？","10","先算括号","2×36＝72","720÷72"],
+["买3支笔12元，买7支同样的笔要多少元？","28","先求1支多少钱","12÷3，再×7","(12÷3)×7"],
+["125×8－125×7＝？","125","8个125减7个125","还剩几个125","125×(8－7)"],
+["钟面上9点整，时针与分针成什么角？",["直角","90度","90°"],"9点时两针相距3大格","3大格多少度","30×3＝90度"],
+["5箱橙子每箱24个，卖出60个，还剩多少个？","60","先算总数","24×5，再减60","24×5－60"],
+["(36＋64)÷(30－20)＝？","10","两个括号各算各的","100和10","100÷10"],
+["一个物体从前面和从上面看到的都是一行3个正方形，最少由几个正方体组成？","3","横着一排3个试试","一排3个两个方向都满足","最少3个"],
+["一辆汽车4小时行240千米，照这样的速度，7小时行多少千米？","420","先求每小时行多少","240÷4，再×7","(240÷4)×7"],
+["一瓶墨水60毫升，一瓶大墨水是它的3倍，大墨水比小墨水多多少毫升？","120","先算3倍是多少","60×3，再减60","60×3－60"]
+]}
+};
+
+var PRAISE = [
+  "王莺莺：好伢子，账算得比外婆还清！",
+  "王莺莺：真能干，帮了外婆大忙咧！",
+  "王莺莺：嘿嘿，这脑子灵光，比算盘还快！",
+  "刘十三：这就对啦，一步一步来，稳得很。",
+  "球球：哇！哥哥/姐姐好厉害呀！"
+];
+
+var GOODS = ["🍬 水果糖罐","⭐ 星星贴纸","🧣 小围巾","🕯️ 星空玻璃瓶","🔦 小台灯","🍪 饼干模具","🍯 桂花蜜","🍊 桔子皮干","🧸 布偶","📮 邮票"];
+
+/* ================= 状态（对应 PRD 第13节字段） ================= */
+var LS_KEY = "yunbian_math_v13";
+function freshState(){
+  return {
+    exchangeMode:"A",            // A/B/C 三激励模式
+    difficulty:"easy",           // easy / hard
+    starRate:4, exchangeMaxMoney:20, exchangeCoolDay:3,
+    banFoodList:["糖果","含糖汽水"],
+    exchangeApplyList:[],
+    star:0, goods:[], unlock:{}, unlockEgg:[],
+    lockSequenceSwitch:true, marketDirectUnlockSwitch:false,
+    illos:{}, marketDone:false, certDate:"", lastApprovedAt:0
+  };
+}
+var S;
+function loadState(){
+  try{
+    var d = JSON.parse(localStorage.getItem(LS_KEY));
+    if(d && typeof d === "object"){ S = Object.assign(freshState(), d); }
+    else S = freshState();
+  }catch(e){ S = freshState(); }
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ================= 工具 ================= */
+function $(id){ return document.getElementById(id); }
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function norm(v){ return String(v==null?"":v).replace(/\s+/g,"").replace(/。|？|\?|（|）|\(|\)|：|:|元|毫升|升|个|根|瓶|包|朵|米|千克|克|箱|袋|盒|杯|组|条|颗|千米|吨|本|支|盆|壶|碗|天|人|份|度$/g,""); }
+function fmtDate(d){ d=d?new Date(d):new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+function toast(msg){ var t=$("toast"); t.textContent=msg; t.style.display="block"; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.display="none"; },2200); }
+
+/* ================= 视图切换 ================= */
+var VIEWS = {home:"v-home",setting:"v-setting",quiz:"v-quiz",result:"v-result",gallery:"v-gallery",exchange:"v-exchange",voucher:"v-voucher",storage:"v-storage",cert:"v-cert"};
+function showView(name){
+  for(var k in VIEWS){ $(VIEWS[k]).className = "view" + (k===name?" on":""); }
+  $("btnExchange").style.display = S.exchangeMode==="A" ? "" : "none";
+  $("btnStorage").style.display  = S.exchangeMode==="B" ? "" : "none";
+  $("btnCert").style.display     = S.marketDone ? "" : "none";
+  $("modeTag").innerHTML = (S.exchangeMode==="A"?"🏪 零食兑换":(S.exchangeMode==="B"?"🧺 物资收集":"✏️ 纯刷题")) +
+    " · " + (S.difficulty==="easy"?"🌱简单帮工":"⭐能干帮工");
+  if(name==="home") renderHome();
+  if(name==="gallery") renderGallery();
+  if(name==="exchange") renderExchange();
+  if(name==="storage") renderStorage();
+  window.scrollTo(0,0);
+}
+function goHome(){ R=null; showView("home"); }
+
+/* ================= 解锁规则 ================= */
+function levelUnlocked(i){
+  var lv = LEVELS[i];
+  if(lv.id==="MK"){
+    if(!S.lockSequenceSwitch) return true;             // 顺序锁关＝全部放行
+    if(S.marketDirectUnlockSwitch) return true;        // 集市独立开关
+    return mainAllDone();
+  }
+  if(!S.lockSequenceSwitch) return true;
+  if(i===0) return true;
+  return !!S.unlock[LEVELS[i-1].id];
+}
+function mainAllDone(){
+  for(var i=0;i<7;i++){ if(!S.unlock[LEVELS[i].id]) return false; }
+  return true;
+}
+
+/* ================= 首页渲染 ================= */
+function renderHome(){
+  $("starTop").textContent = S.star;
+  var html = "";
+  for(var i=0;i<LEVELS.length;i++){
+    var lv = LEVELS[i];
+    var done = lv.id==="MK" ? S.marketDone : !!S.unlock[lv.id];
+    var open = levelUnlocked(i);
+    html += '<div class="lv '+(done?"done":(open?"":"locked"))+'" data-i="'+i+'">' +
+      '<div class="no">'+(done?"✅":(open?(i+1):"🔒"))+'</div>' +
+      '<div><div class="nm">'+lv.name+'</div><div class="un">'+lv.unit+'</div></div>' +
+      '<div class="st">'+(done?"已通关":(open?"可挑战":"顺序锁"))+'</div></div>';
+  }
+  $("lvList").innerHTML = html;
+  Array.prototype.forEach.call($("lvList").children, function(el){
+    el.onclick = function(){
+      var i = parseInt(el.getAttribute("data-i"),10);
+      if(!levelUnlocked(i)){
+        var lv = LEVELS[i];
+        if(lv.id==="MK") toast("先把 7 个主线关都通掉，或者在外婆的设置里单独放行集市");
+        else toast("顺序锁开着呢：通关上一关才能解锁这一关（可在设置里关闭）");
+        return;
+      }
+      startLevel(LEVELS[i].id, i);
+    };
+  });
+}
+
+/* ================= 答题流程 ================= */
+var R = null;   // 当前轮：{levelId, idx, qs, wrong, ok}
+function startLevel(levelId){
+  var pool = POOLS[levelId][S.difficulty];
+  R = { levelId:levelId, idx:0, qs:shuffle(pool).slice(0, Math.min(CONFIG.roundCount, pool.length)), wrong:0, ok:0 };
+  showView("quiz");
+  renderQ();
+}
+function curLv(){ for(var i=0;i<LEVELS.length;i++){ if(LEVELS[i].id===R.levelId) return LEVELS[i]; } return LEVELS[0]; }
+function renderQ(){
+  var item = R.qs[R.idx];
+  var lv = curLv();
+  $("qFrom").textContent = lv.name + " · " + (S.difficulty==="easy"?"简单":"进阶") + "题池随机";
+  $("qProg").textContent = "第 "+(R.idx+1)+" / "+R.qs.length+" 题";
+  $("qText").textContent = item[0];
+  $("ansInput").value = "";
+  $("tier1").className="tier t1"; $("tier2").className="tier t2"; $("tier3").className="tier t3";
+  $("ansInput").focus();
+}
+function submitAns(){
+  if(!R) return;
+  var item = R.qs[R.idx];
+  var val = norm($("ansInput").value);
+  if(!val){ toast("先写下答案再提交"); return; }
+  var answers = Array.isArray(item[1]) ? item[1] : [item[1]];
+  var hit = answers.some(function(a){ return norm(a)===val; });
+  if(hit){
+    R.ok++; S.star++; save();
+    var drop = "";
+    if(S.exchangeMode==="B" && Math.random()<CONFIG.dropChance){
+      var g = GOODS[Math.floor(Math.random()*GOODS.length)];
+      S.goods.push(g); save();
+      drop = "（掉落物资："+g+"，去储藏筐看看）";
+    }
+    showPraise("⭐ 星光 +1"+(drop?"":""), PRAISE[Math.floor(Math.random()*PRAISE.length)] + " " + drop, function(){
+      R.idx++;
+      if(R.idx>=R.qs.length) finishLevel(); else renderQ();
+    });
+  }else{
+    R.wrong++;
+    var t = Math.min(R.wrong,3);
+    if(t>=1){ $("tier1txt").textContent=item[2]; $("tier1").className="tier t1 on"; }
+    if(t>=2){ $("tier2txt").textContent=item[3]; $("tier2").className="tier t2 on"; }
+    if(t>=3){ $("tier3txt").textContent=item[4]; $("tier3").className="tier t3 on";
+      toast("别急，照着示范思路再试一次，答案自己填～"); }
+    else toast(t===1?"不对哦，看看刘十三的提示":"再想想，锦囊卡片打开啦");
+    save();
+  }
+}
+var praiseQueue = null;
+function showPraise(emoji,msg,cb){
+  $("prEmoji").textContent = emoji || "🌟";
+  $("prMsg").textContent = msg;
+  praiseQueue = cb || null;
+  $("m-praise").className = "mask on";
+}
+$("prBtn").onclick = function(){ $("m-praise").className="mask"; if(praiseQueue){ var f=praiseQueue; praiseQueue=null; f(); } };
+
+function finishLevel(){
+  var lv = curLv();
+  var first = false;
+  if(lv.id==="MK"){
+    if(!S.marketDone){ S.marketDone=true; S.certDate=fmtDate(); first=true; }
+  }else if(!S.unlock[lv.id]){ S.unlock[lv.id]=true; first=true; }
+  if(!S.illos[lv.id]){ S.illos[lv.id]=true; }
+  save();
+  $("resArt").textContent = lv.art;
+  $("resTitle").textContent = lv.name + " · 通关！";
+  var nxt = "";
+  if(lv.id!=="MK"){
+    var i = LEVELS.indexOf(lv);
+    if(i+1<LEVELS.length && levelUnlocked(i+1)) nxt = LEVELS[i+1].name;
+  }
+  $("resMsg").innerHTML = "本轮答对 <b>"+R.ok+"</b> 题，收获 <b>"+R.ok+"</b> 颗星光。" +
+    (first?("<br>🎉 解锁"+(lv.id==="MK"?"「优秀帮工奖状」":"新插画「"+lv.cap+"」")):"") +
+    (nxt?("<br>下一关已解锁："+nxt):"");
+  $("resNext").style.display = nxt ? "" : "none";
+  $("resNext").onclick = function(){
+    var i = LEVELS.indexOf(lv); startLevel(LEVELS[i+1].id);
+  };
+  if(lv.id==="MK" && first){ setTimeout(function(){ showView("cert"); $("certName").textContent=CONFIG.childName; $("certDate").textContent=S.certDate; }, 300); }
+  showView("result");
+}
+
+/* 朗读题目：有道美音，只读题干 */
+$("btnRead").onclick = function(){
+  if(!R) return;
+  try{
+    var u = "https://dict.youdao.com/dictvoice?type=2&audio=" + encodeURIComponent(R.qs[R.idx][0]);
+    var a = new Audio(u); a.play();
+  }catch(e){ toast("朗读需要联网，当前不可用"); }
+};
+
+/* ================= 草稿板 ================= */
+(function(){
+  var cv = $("pad"), ctx = cv.getContext("2d");
+  ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.strokeStyle = "#604028";
+  var drawing = false, lx=0, ly=0;
+  function pos(e){ var r=cv.getBoundingClientRect(); var p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*cv.width/r.width, y:(p.clientY-r.top)*cv.height/r.height}; }
+  function down(e){ drawing=true; var p=pos(e); lx=p.x; ly=p.y; if(e.cancelable) e.preventDefault(); }
+  function move(e){ if(!drawing) return; var p=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke(); lx=p.x; ly=p.y; if(e.cancelable) e.preventDefault(); }
+  function up(){ drawing=false; }
+  cv.addEventListener("mousedown",down); cv.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",up);
+  cv.addEventListener("touchstart",down,{passive:false}); cv.addEventListener("touchmove",move,{passive:false}); cv.addEventListener("touchend",up);
+  $("btnPad").onclick = function(){ $("m-pad").className="mask on"; };
+  $("padClose").onclick = function(){ $("m-pad").className="mask"; };
+  $("padClear").onclick = function(){ ctx.clearRect(0,0,cv.width,cv.height); };
+})();
+$("btnAns").onclick = submitAns;
+$("ansInput").addEventListener("keydown", function(e){ if(e.key==="Enter") submitAns(); });
+$("btnQuit").onclick = goHome;
+
+/* ================= 插画屋 ================= */
+function renderGallery(){
+  var html = "";
+  for(var i=0;i<LEVELS.length;i++){
+    var lv = LEVELS[i];
+    var got = !!S.illos[lv.id] || (lv.id==="MK"&&S.marketDone);
+    html += '<div class="illo'+(got?"":" off")+'"><div class="art">'+(got?lv.art:"🔒")+'</div><div class="cap">'+lv.cap+(got?"":"（通关「"+lv.name+"」解锁）")+'</div></div>';
+  }
+  $("galList").innerHTML = html;
+}
+
+/* ================= 外婆兑换台（模式A） ================= */
+function pendingStars(){ var n=0; S.exchangeApplyList.forEach(function(a){ if(a.status==="pending") n+=a.stars; }); return n; }
+function checkExpired(){
+  var back = 0, now = Date.now();
+  S.exchangeApplyList.forEach(function(a){
+    if(a.status==="approved" && a.expireAt && a.expireAt < now){ a.status="expired"; S.star += a.stars; back += a.stars; }
+  });
+  if(back>0){ save(); toast("有兑换凭证过期了，"+back+" 颗星光已退回"); }
+}
+function renderExchange(){
+  checkExpired();
+  var lock = pendingStars(), avail = S.star - lock;
+  $("stTotal").textContent = S.star;
+  $("stLock").textContent = lock;
+  $("stAvail").textContent = avail;
+  $("exRule").textContent = "兑换比例：每 "+S.starRate+" 颗星光 = 1 元 ｜ 单次上限 "+S.exchangeMaxMoney+" 元 ｜ 冷却 "+S.exchangeCoolDay+" 天";
+  var last = S.lastApprovedAt ? Math.floor((Date.now()-S.lastApprovedAt)/86400000) : 9999;
+  var wait = S.exchangeCoolDay - last;
+  $("coolTip").textContent = wait>0 ? ("⏳ 冷却中：还要等 "+wait+" 天才能再次兑换") : "✅ 冷却期已过，可以申请";
+  /* 审核 */
+  var pend = S.exchangeApplyList.filter(function(a){ return a.status==="pending"; });
+  $("reviewList").innerHTML = pend.length ? "" : '<p class="empty-tip" style="padding:8px">暂无待审核的申请</p>';
+  pend.forEach(function(a){
+    var d = document.createElement("div");
+    d.className="app-item";
+    d.innerHTML = '<span class="st st-pending">待审核</span>'+a.date+' 申请兑换 <b>'+a.money+' 元</b>（消耗 '+a.stars+' 颗星光）' +
+      '<div class="row" style="margin-top:8px"><button class="btn" style="padding:6px 14px">✅ 通过</button>' +
+      '<button class="btn ghost" style="padding:6px 14px">❌ 驳回</button></div>';
+    d.querySelector(".btn").onclick = function(){ approve(a.id); };
+    d.querySelector(".ghost").onclick = function(){
+      var r = prompt("填写驳回理由（会告诉孩子）：","这次先攒够更多星光再换哦");
+      if(r===null) return;
+      reject(a.id, r||"家长驳回");
+    };
+    $("reviewList").appendChild(d);
+  });
+  /* 历史 */
+  var his = S.exchangeApplyList.slice().reverse();
+  $("hisList").innerHTML = his.length ? "" : '<p class="empty-tip" style="padding:8px">还没有兑换记录</p>';
+  var stMap = {pending:["待审核","st-pending"],approved:["已通过","st-approved"],rejected:["已驳回","st-rejected"],expired:["已过期(星光退回)","st-expired"]};
+  his.forEach(function(a){
+    var d = document.createElement("div");
+    d.className="app-item";
+    var st = stMap[a.status];
+    var extra = a.status==="approved" ? "，凭证有效期至 "+fmtDate(a.expireAt) : (a.reason?("，理由："+a.reason):"");
+    d.innerHTML = '<span class="st '+st[1]+'" '+(a.status==="approved"?'data-v="'+a.id+'" style="cursor:pointer;text-decoration:underline"':"")+'>'+st[0]+'</span>' +
+      a.date+' ｜ '+a.money+' 元 ｜ '+a.stars+' 颗星光'+extra;
+    if(a.status==="approved"){ d.querySelector("[data-v]").onclick=function(){ showVoucher(a.id); }; }
+    $("hisList").appendChild(d);
+  });
+}
+function applyExchange(){
+  var money = parseFloat($("inMoney").value);
+  if(!money || money<=0){ toast("先填想兑换的金额"); return; }
+  money = Math.round(money*10)/10;
+  if(money > S.exchangeMaxMoney){ toast("单次最多兑换 "+S.exchangeMaxMoney+" 元"); return; }
+  var stars = Math.ceil(money * S.starRate);
+  var avail = S.star - pendingStars();
+  if(stars > avail){ toast("可用星光不够：这次要 "+stars+" 颗，可用 "+avail+" 颗"); return; }
+  var last = S.lastApprovedAt ? Math.floor((Date.now()-S.lastApprovedAt)/86400000) : 9999;
+  if(S.exchangeCoolDay - last > 0){ toast("冷却中，还要等 "+(S.exchangeCoolDay-last)+" 天"); return; }
+  var banned = S.banFoodList.join("、") || "（家长暂未设置黑名单）";
+  S.exchangeApplyList.push({
+    id:"EX"+Date.now(), money:money, stars:stars, date:fmtDate(),
+    status:"pending", reason:"", expireAt:0
+  });
+  save();
+  $("inMoney").value = "";
+  toast("申请已提交给家长审核 🧾（黑名单："+banned+"）");
+  renderExchange();
+}
+function approve(id){
+  S.exchangeApplyList.forEach(function(a){
+    if(a.id===id && a.status==="pending"){
+      a.status="approved"; a.expireAt = Date.now() + 7*86400000;
+      S.star -= a.stars; S.lastApprovedAt = Date.now();
+    }
+  });
+  save(); renderExchange();
+  toast("已通过！星光已扣减，凭证 7 天内有效 🎫");
+}
+function reject(id, reason){
+  S.exchangeApplyList.forEach(function(a){ if(a.id===id && a.status==="pending"){ a.status="rejected"; a.reason=reason; } });
+  save(); renderExchange();
+  toast("已驳回，锁定的星光已退回");
+}
+function showVoucher(id){
+  var a = null;
+  S.exchangeApplyList.forEach(function(x){ if(x.id===id) a=x; });
+  if(!a) return;
+  var imgStyle = CONFIG.zmyImg ? 'style="background-image:url(\''+CONFIG.zmyImg+'\')"' : "";
+  var imgTxt = CONFIG.zmyImg ? "" : "【赵一鸣门店配图位】";
+  $("voucherBox").innerHTML =
+    '<div class="vt">云边小卖部 · 零食兑换凭证</div>' +
+    '<div class="zmy-mini" '+imgStyle+'>'+imgTxt+'</div>' +
+    '<div class="vr">持有人：<b>'+CONFIG.childName+'</b></div>' +
+    '<div class="vr">申请日期：'+a.date+'</div>' +
+    '<div class="vr">消耗星光：<b>'+a.stars+'</b> 颗 ｜ 兑换额度：<b>'+a.money+'</b> 元</div>' +
+    '<div class="vr">使用地点：赵一鸣零食（门店自选）</div>' +
+    '<div class="vr" style="color:#c92828">有效期至：'+fmtDate(a.expireAt)+'（7天），超时星光自动退回</div>' +
+    '<div class="rule">规则：仅限家长陪同到店，家长自费结算；不兑现现金、不找零；禁止选购黑名单零食（'+S.banFoodList.join("、")+'），优先选酸奶、坚果、海苔这类更健康的零食。本凭证仅为家庭内部记账奖励，门店不识别此券。</div>';
+  showView("voucher");
+}
+$("btnApply").onclick = applyExchange;
+
+/* ================= 储藏筐（模式B） ================= */
+function renderStorage(){
+  var counts = {};
+  S.goods.forEach(function(g){ counts[g]=(counts[g]||0)+1; });
+  var html = "";
+  for(var i=0;i<GOODS.length;i++){
+    var g = GOODS[i], n = counts[g]||0;
+    html += '<div class="illo'+(n?"":" off")+'"><div class="art">'+g+'</div><div class="cap">'+(n?("已收集 ×"+n):"还没收到（答题会随机掉落）")+'</div></div>';
+  }
+  $("goodsList").innerHTML = html;
+}
+
+/* ================= 家长设置 ================= */
+function bindSetting(){
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=diff]'), function(el){
+    el.checked = el.value===S.difficulty;
+    el.onchange = function(){ S.difficulty=el.value; save(); toast("难度已切换"); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'), function(el){
+    el.checked = el.value===S.exchangeMode;
+    el.onchange = function(){ S.exchangeMode=el.value; save(); showView("setting"); toast(el.value==="A"?"模式A：攒星光换零食":(el.value==="B"?"模式B：物资彩蛋收集":"模式C：纯刷题")); };
+  });
+  $("swLock").checked = S.lockSequenceSwitch;
+  $("swLock").onchange = function(){ S.lockSequenceSwitch=$("swLock").checked; save(); };
+  $("swMarket").checked = S.marketDirectUnlockSwitch;
+  $("swMarket").onchange = function(){ S.marketDirectUnlockSwitch=$("swMarket").checked; save(); };
+  $("inRate").value = S.starRate; $("inMax").value = S.exchangeMaxMoney; $("inCool").value = S.exchangeCoolDay;
+  $("inRate").onchange = function(){ var v=parseInt($("inRate").value,10); if(v>=1){S.starRate=v;save();} };
+  $("inMax").onchange  = function(){ var v=parseFloat($("inMax").value); if(v>0){S.exchangeMaxMoney=v;save();} };
+  $("inCool").onchange = function(){ var v=parseInt($("inCool").value,10); if(v>=0){S.exchangeCoolDay=v;save();} };
+  renderBan();
+  $("btnAddBan").onclick = function(){
+    var v = $("inBan").value.trim();
+    if(v && S.banFoodList.indexOf(v)<0){ S.banFoodList.push(v); save(); renderBan(); }
+    $("inBan").value = "";
+  };
+}
+function renderBan(){
+  $("banList").innerHTML = S.banFoodList.map(function(b,i){
+    return '<span class="chip"><b>'+b+'</b><span class="x" data-i="'+i+'">✕</span></span>';
+  }).join("");
+  Array.prototype.forEach.call($("banList").querySelectorAll(".x"), function(el){
+    el.onclick = function(){ S.banFoodList.splice(parseInt(el.getAttribute("data-i"),10),1); save(); renderBan(); };
+  });
+}
+
+/* ================= 全屏 / 启动 ================= */
+$("fsBtn").onclick = function(){
+  if(document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+};
+$("btnSetting").onclick = function(){ bindSetting(); showView("setting"); };
+$("btnGallery").onclick = function(){ showView("gallery"); };
+$("btnExchange").onclick = function(){ showView("exchange"); };
+$("btnStorage").onclick = function(){ showView("storage"); };
+$("btnCert").onclick = function(){ $("certName").textContent=CONFIG.childName; $("certDate").textContent=S.certDate||fmtDate(); showView("cert"); };
+
+loadState();
+checkExpired();
+showView("home");
+
+/* PWA：GitHub Pages 等线上环境注册离线缓存；本地双击打开则天然离线 */
+if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
+  navigator.serviceWorker.register("./sw.js").catch(function(){});
+}
+</script>
+</body>
+</html>
