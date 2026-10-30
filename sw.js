@@ -1,5 +1,5 @@
 /* 云边小卖部·数学闯关 离线缓存 */
-const CACHE = "yunbian-math-v13";
+const CACHE = "yunbian-math-v14";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
@@ -17,11 +17,12 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   // 有道朗读等外部请求直接放行不缓存
   if (!e.request.url.startsWith(self.location.origin)) return;
+  // 网络优先：部署新版本后用户自动拿到最新文件；断网时回退到缓存，保证离线可用
   e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
+    fetch(e.request).then((res) => {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy));
       return res;
-    }).catch(() => hit))
+    }).catch(() => caches.match(e.request))
   );
 });
