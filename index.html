@@ -302,7 +302,6 @@ var CONFIG = {
   grandmaName: "王莹莹",             // 外婆称呼（朗读与夸奖台词使用）
   roundCount: 6,                     // 每轮抽题数量（从本关题库随机抽）
   bankSize: 400,                     // 题库总量（约 400 题，随机出题）
-  difficultyScale: 2.5,              // 难度倍数：相对原版 ×2.5
   dropChance: 0.3                    // 模式B答对掉落物资概率
 };
 
@@ -321,8 +320,8 @@ var LEVELS = [
 ];
 
 /* ================= 智能题池（随机出题，约 400 题） =================
-   全部题目由模板 + 随机参数即时生成，答案均为整数；提示/锦囊不泄题。
-   难度系数 CONFIG.difficultyScale（默认 2.5）控制数字大小，实现“难度×2.5”。
+   全部题目由模板 + 随机参数即时生成，答案均为整数；提示/锦囊只引导思路，不写最终得数。
+   结构难度（非数字放大）：easy = 单步/基础；hard = 多步混合、带括号、单位换算、逆向求条件、比较陷阱。
    运行时每进一关从本关题库随机抽 6 题，退出重进重新随机，本轮不重复。 */
 
 function ri(rng,a,b){ return Math.floor(rng()*(b-a+1))+a; }
@@ -331,105 +330,202 @@ function ONE_OF(rng,arr){ return arr[Math.floor(rng()*arr.length)]; }
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function hashStr(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 
-/* 每个模板：fn(rng, M) -> {q, a, h1, h2, h3}，a 必须为整数（ri 自带取整，M 非整数也无妨） */
 var TEMPLATES = {
-L1:[
- function(rng,M){ var b=ri(rng,2*M,9*M); var ml=b*1000; return {q:"一瓶果汁有 "+ml+" 毫升，合多少升？",a:b,h1:"毫升和升的进率是 1000",h2:"看 "+ml+" 毫升里有几个 1000 就有几升",h3:"毫升数 ÷ 1000 = 升数，算出括号里填几"}; },
- function(rng,M){ var L=ri(rng,2*M,9*M); return {q:"一桶油 "+L+" 升，是多少毫升？",a:L*1000,h1:"升变毫升要乘进率 1000",h2:"1 升 = 1000 毫升，"+L+" 升就是 "+L+" 个 1000",h3:"升数 × 1000 = 毫升数，算出括号里的数"}; },
- function(rng,M){ var L=ri(rng,2*M,6*M); var k=ri(rng,1,L-1); return {q:"一桶水 "+L+" 升，倒出 "+k+" 升后，壶里还剩多少毫升？",a:(L-k)*1000,h1:"先把桶里的水都换成毫升",h2:L+" 升 = "+(L*1000)+" 毫升，倒出 "+(k*1000)+" 毫升",h3:"总毫升数 − 倒出的毫升数 = 剩下的，算出括号里的数"}; },
- function(rng,M){ var cap=ri(rng,2*M,9*M)*100; var a=ri(rng,4,12); var ml=a*cap; return {q:"把 "+ml+" 毫升果汁分装到每个 "+cap+" 毫升的小瓶里，能装满几瓶？",a:a,h1:"同单位，看 "+ml+" 里有几个 "+cap,h2:ml+" ÷ "+cap+"，看里面有几个整瓶",h3:"总量 ÷ 每瓶容量 = 瓶数，算出括号里的数"}; },
- function(rng,M){ var boxes=ri(rng,2,5),per=ri(rng,3,8),ml=ri(rng,2*M,8*M)*100; var total=boxes*per*ml; return {q:"超市运来 "+boxes+" 箱饮料，每箱 "+per+" 瓶，每瓶 "+ml+" 毫升，一共多少毫升？",a:total,h1:"先算一共有多少瓶",h2:boxes+" × "+per+" = 总瓶数，再乘每瓶毫升",h3:"瓶数 × 每瓶毫升 = 总毫升，算出括号里的数"}; },
- function(rng,M){ var B=ri(rng,5*M,15*M); var extra=ri(rng,2,8); var Aml=(B+extra)*1000; return {q:"甲瓶有水 "+Aml+" 毫升，乙瓶有 "+B+" 升，甲瓶比乙瓶多多少毫升？",a:extra*1000,h1:"单位不同，先把乙瓶换成毫升",h2:B+" 升 = "+(B*1000)+" 毫升",h3:"甲瓶毫升 − 乙瓶毫升 = 多的，算出括号里的数"}; },
- function(rng,M){ var cups=ri(rng,4,9),ml=ri(rng,2*M,7*M)*100; return {q:"医生建议每天喝 "+cups+" 杯水，每杯 "+ml+" 毫升，一天共喝多少毫升？",a:cups*ml,h1:cups+" 个 "+ml+" 相加",h2:cups+" × "+ml,h3:"杯数 × 每杯毫升 = 总毫升，算出括号里的数"}; },
- function(rng,M){ var B=ri(rng,3*M,8*M); var X=ri(rng,1,5)*100; var A=B*2+X; return {q:"乙瓶的水是甲瓶的 2 倍还多 "+X+" 毫升，甲瓶有 "+B+" 毫升，乙瓶多少毫升？",a:A,h1:"先算 2 倍是多少",h2:"先把甲瓶的量乘 2，再加上多出的部分",h3:"甲 × 2 + 多出的 = 乙，算出括号里的数"}; }
-],
-L2:[
- function(rng,M){ var d=ri(rng,12,39); var q=ri(rng,3,9*M); var n=d*q; return {q:n+" ÷ "+d+" ＝？",a:q,h1:"想 "+d+" 乘几接近 "+n,h2:"试商：想 "+d+" 的几倍接近 "+n,h3:d+" × （ ）= "+n+"，括号里填几"}; },
- function(rng,M){ var per=ri(rng,12,39),bags=ri(rng,2,9); var total=per*bags; return {q:"有 "+total+" 颗糖，每袋装 "+per+" 颗，能装几袋？",a:bags,h1:total+" 里面有几个 "+per,h2:total+" ÷ "+per+" ＝几袋",h3:"总数 ÷ 每袋颗数 = 袋数，算出括号里的数"}; },
- function(rng,M){ var per=ri(rng,18,49),boxes=ri(rng,2,8); var total=per*boxes; return {q:"商店有 "+total+" 瓶饮料，每箱装 "+per+" 瓶，能装几箱？",a:boxes,h1:total+" 里有几个 "+per,h2:total+" ÷ "+per,h3:"总数 ÷ 每箱瓶数 = 箱数"}; },
- function(rng,M){ var cls=ri(rng,12,29),per=ri(rng,18,49); var total=cls*per; return {q:"学校买来 "+total+" 本书，平均分给 "+cls+" 个班，每班多少本？",a:per,h1:"总数 ÷ 班数 = 每班本数",h2:total+" ÷ "+cls+" ＝几",h3:"想 "+cls+" × 几 = "+total}; },
- function(rng,M){ var spd=ri(rng,40,90),dist=spd*ri(rng,2,9); return {q:"一辆汽车每小时行 "+spd+" 千米，行 "+dist+" 千米要几小时？",a:dist/spd,h1:dist+" 里面有几个 "+spd,h2:dist+" ÷ "+spd,h3:"路程 ÷ 速度 = 时间"}; },
- function(rng,M){ var d1=ri(rng,11,29),d2=ri(rng,2,9); var inner=d1*d2; var q=ri(rng,2,19); var n=inner*q; return {q:n+" ÷ ("+d1+" × "+d2+") ＝？",a:q,h1:"先算小括号里的除数",h2:d1+" × "+d2+" = "+inner+"，再用 "+n+" 去除以它",h3:"先算括号，再算除法，括号里填几"}; },
- function(rng,M){ var days=ri(rng,3,9),per=ri(rng,60,200); var total=days*per; return {q:"商店 "+days+" 天卖出 "+total+" 瓶汽水，平均每天卖多少瓶？",a:per,h1:"总量 ÷ 天数",h2:total+" ÷ "+days,h3:"总瓶数 ÷ 天数 = 每天瓶数"}; },
- function(rng,M){ var per=ri(rng,18,49),boxes=ri(rng,2,9); var total=per*boxes; return {q:"矿泉水每箱 "+per+" 瓶，进了 "+boxes+" 箱，一共多少瓶？",a:total,h1:per+" × "+boxes,h2:"可以先算 "+per+" × "+(boxes-1)+" 再加 "+per,h3:"每箱瓶数 × 箱数 = 总瓶数"}; }
-],
-L3:[
- function(rng,M){ var n=ri(rng,3,12); return {q:"用 "+n+" 个同样大的正方体拼成横着的一排，从前面看到几个小正方形？",a:n,h1:"一排几个，前面就看到几个",h2:"从前面每个都看得见，不遮挡",h3:"横着一排，从前面就是 "+n+" 个并排"}; },
- function(rng,M){ var n=ri(rng,3,12); return {q:n+" 个同样的正方体竖着摞起来，从侧面看到几个正方形？",a:n,h1:"竖着摞，侧面看是一列",h2:"一列几个就是几个",h3:"从侧面看到 "+n+" 个竖着排"}; },
- function(rng,M){ var r=ri(rng,2,6),c=ri(rng,2,6); return {q:r+"×"+c+" 个正方体平铺在地上，从上面看到几个正方形？",a:r*c,h1:"平铺没有遮挡",h2:r+" 行 × "+c+" 列，上面全看得见",h3:r+" × "+c+" = 几个正方形"}; },
- function(rng,M){ return {q:"观察一个长方体礼盒，一次最多能同时看到它的几个面？",a:3,h1:"想一想墙角的位置",h2:"相邻的三个面",h3:"最多同时看到 3 个面"}; },
- function(rng,M){ var n=ri(rng,3,12); return {q:"用 "+n+" 个正方体拼成 L 形（拐角摆放），从上面看到几个正方形？",a:n,h1:"从上面看，只要摆了的都数",h2:"上面不遮挡",h3:n+" 个都看得见"}; },
- function(rng,M){ var n=ri(rng,2,6); return {q:"一个物体从前面看到一行 "+n+" 个正方形，从右面看到一行 "+n+" 个正方形，它最少由几个正方体组成？",a:n,h1:"一排 "+n+" 个竖着摆即可同时满足两个方向",h2:"一排 "+n+" 个从前后右都看 "+n+" 个",h3:"最少 "+n+" 个"}; },
- function(rng,M){ var c1=ri(rng,2,6),c2=ri(rng,1,c1); return {q:"用正方体搭：下层 "+c1+" 个摆一排，上层 "+c2+" 个搭在左端，从左面看到几个正方形？",a:c1,h1:"左面看是 "+c1+" 列，最左一列最高",h2:"最高层数是 "+c1,h3:"从左面看到 "+c1+" 个竖着排"}; },
- function(rng,M){ var n=ri(rng,2,6); return {q:"用同样大的正方体摆一个物体：从前面看是一行 "+n+" 个，从上面看也是一行 "+n+" 个，最少几个正方体？",a:n,h1:"一排 "+n+" 个就同时满足两个方向",h2:"摆成横着的一排试试",h3:"最少 "+n+" 个"}; }
-],
-L4:[
- function(rng,M){ var a=ri(rng,15*M,45*M),b=ri(rng,15,45),c=ri(rng,15,45); var s=a+b+c; return {q:"小卖部三天卖冰棍分别 "+a+"、"+b+"、"+c+" 根，三天一共卖多少根？",a:s,h1:"三个数连加",h2:a+" + "+b+" + "+c,h3:"按顺序相加，算出总数"}; },
- function(rng,M){ var x=ri(rng,10*M,40*M); var y=x+ri(rng,3,20); return {q:"周一卖汽水 "+x+" 瓶，周二比周一多卖 "+(y-x)+" 瓶，周二卖多少瓶？",a:y,h1:"比 "+x+" 多 "+(y-x),h2:"用星期一的量加上多卖出的那部分",h3:"用加法算周二的量"}; },
- function(rng,M){ var a=ri(rng,5,15),b=ri(rng,5,15),c=ri(rng,5,15),d=ri(rng,5,15); return {q:"四个小组收集易拉罐分别 "+a+"、"+b+"、"+c+"、"+d+" 个，一共多少个？",a:a+b+c+d,h1:"四个数连加",h2:a+" + "+b+" + "+c+" + "+d,h3:"按顺序加出总数"}; },
- function(rng,M){ var d1=ri(rng,3,8),p1=d1*ri(rng,10,20); var d2=ri(rng,3,8),p2=d2*ri(rng,15,25); return {q:"前 "+d1+" 天每天卖 "+(p1/d1)+" 包面，后 "+d2+" 天每天卖 "+(p2/d2)+" 包，一周共卖多少包？",a:p1+p2,h1:"分开算再合起来",h2:p1+" + "+p2,h3:"两段相加"}; },
- function(rng,M){ var a=ri(rng,90,110); var b=a+3,c=a+6; return {q:"三人跳绳分别 "+a+"、"+b+"、"+c+" 个，平均每人跳多少个？",a:a+3,h1:"先求总数再除以 3",h2:a+" + "+b+" + "+c+" = "+(3*a+9)+"，再 ÷ 3",h3:"总数 ÷ 人数 = 平均数"}; },
- function(rng,M){ var sun=ri(rng,3,7),rain=ri(rng,1,4); return {q:"一周里晴天 "+sun+" 天、雨天 "+rain+" 天，晴天比雨天多几天？",a:sun-rain,h1:sun+" 和 "+rain+" 比",h2:sun+" − "+rain,h3:"用减法"}; },
- function(rng,M){ var x=ri(rng,8*M,20*M); var y=x*2-ri(rng,1,6); return {q:"喜欢橙汁的有 "+x+" 人，喜欢牛奶的是橙汁的 2 倍少 "+(x*2-y)+" 人，喜欢牛奶多少人？",a:y,h1:"先算 2 倍再减",h2:"先把橙汁的人数乘 2，再减去少的那几人",h3:"倍数减几 = 结果"}; },
- function(rng,M){ var x=ri(rng,20*M,60*M); return {q:"台账上星期一收入 "+x+" 元，星期二是星期一的 2 倍，星期二收入多少元？",a:x*2,h1:"2 倍就是乘 2",h2:"把星期一的收入乘 2",h3:"星期一收入 × 2"}; }
-],
-L5:[
- function(rng,M){ var n1=ri(rng,2,6),c1=n1*ri(rng,3,9),n2=ri(rng,4,10); var unit=ONE_OF(rng,["钢笔","练习本","本子","铅笔"]); return {q:"买 "+n1+" 支"+unit+"花了 "+c1+" 元，买 "+n2+" 支同样的"+unit+"要多少元？",a:c1/n1*n2,h1:"先求 1 支多少钱",h2:"先用总价 ÷ 支数算出单价，再乘新的支数",h3:"单价 × 数量 = 总价"}; },
- function(rng,M){ var boxes=ri(rng,2,6),price=boxes*ri(rng,20,60),boxes2=ri(rng,3,10); return {q:boxes+" 箱苹果 "+price+" 元，"+boxes2+" 箱同样的苹果多少元？",a:price/boxes*boxes2,h1:"先求 1 箱的价钱",h2:"先用总价 ÷ 箱数算出每箱价，再乘新的箱数",h3:"每箱价 × 箱数 = 总价"}; },
- function(rng,M){ var r=ri(rng,15,40),h=ri(rng,3,9); return {q:"每小时加工 "+r+" 个零件，"+h+" 小时加工多少个？",a:r*h,h1:"每小时 × 小时数",h2:r+" × "+h,h3:"效率 × 时间 = 总量"}; },
- function(rng,M){ var spd=ri(rng,50,90),h=ri(rng,2,8); return {q:"一辆汽车每小时行 "+spd+" 千米，"+h+" 小时行多少千米？",a:spd*h,h1:"速度 × 时间 = 路程",h2:spd+" × "+h,h3:"算出路程"}; },
- function(rng,M){ var pages=ri(rng,80*M,160*M),per=ri(rng,10,25); var days=ri(rng,3,6); var read=per*days; return {q:"看一本 "+pages+" 页的书，每天看 "+per+" 页，看了 "+days+" 天，还剩多少页没看？",a:pages-read,h1:"先算已经看了多少页",h2:per+" × "+days+" = "+read+"，用 "+pages+" 去减",h3:"总页 − 已看 = 剩下"}; },
- function(rng,M){ var boxes=ri(rng,3,7),per=ri(rng,15,30); var total=boxes*per; var sold=ri(rng,1,total-1); return {q:"商店运来 "+boxes+" 箱橘子，每箱 "+per+" 个，卖出 "+sold+" 个，还剩多少个？",a:total-sold,h1:"先算一共运来多少",h2:boxes+" × "+per+" = "+total+"，再减 "+sold,h3:"总数 − 卖出 = 剩下"}; },
- function(rng,M){ var up=ri(rng,40,80),down=ri(rng,30,60); var n=ri(rng,2,6); return {q:"一件上衣 "+up+" 元，一条裤子 "+down+" 元，买 "+n+" 套一共多少元？",a:(up+down)*n,h1:"先算 1 套多少钱",h2:"一套是 "+(up+down)+" 元，再 × "+n,h3:"每套价 × 套数 = 总价"}; },
- function(rng,M){ var d1=ri(rng,3,6),p1=d1*ri(rng,30,50); var d2=ri(rng,3,6),p2=d2*ri(rng,40,60); return {q:"工程队修路，前 "+d1+" 天每天修 "+(p1/d1)+" 米，后 "+d2+" 天每天修 "+(p2/d2)+" 米，一共修多少米？",a:p1+p2,h1:"两段分别算",h2:p1+" + "+p2,h3:"两段相加"}; }
-],
-L6:[
- function(rng,M){ var a=ri(rng,12*M,39*M),b=ri(rng,3,12),c=ri(rng,10,40); var ans=a+b*c; return {q:a+" + "+b+" × "+c+" ＝？",a:ans,h1:"先乘后加",h2:"先算 "+b+" × "+c+" 是多少，再和 "+a+" 相加",h3:"先算乘法，再算加法"}; },
- function(rng,M){ var a=ri(rng,20,60),b=ri(rng,5,30),c=ri(rng,2,9); var inner=a-b; var ans=inner*c; return {q:"("+a+" − "+b+") × "+c+" ＝？",a:ans,h1:"先算小括号里的差",h2:a+" − "+b+" = "+inner+"，再 × "+c,h3:"括号里先算，再乘"}; },
- function(rng,M){ var a=ri(rng,6,12),b=ri(rng,5,15),c=ri(rng,10,40); var ans=a*b-c; return {q:a+" × "+b+" − "+c+" ＝？",a:ans,h1:"先乘后减",h2:a+" × "+b+" = "+(a*b)+"，再减 "+c,h3:"先算乘法，再减法"}; },
- function(rng,M){ var b=ri(rng,2,9),c=ri(rng,3,12); var d=b*c; var a=d+ri(rng,10,40); var ans=a-d; return {q:a+" − "+b+" × "+c+" ＝？",a:ans,h1:"先乘后减",h2:b+" × "+c+" = "+d+"，用 "+a+" 去减",h3:"先算乘法，再减法"}; },
- function(rng,M){ var a=ri(rng,10,30),b=ri(rng,5,25); var c=ri(rng,3,12); var ans=(a+b)*c; return {q:c+" × ("+a+" + "+b+") ＝？",a:ans,h1:"先算小括号里的和",h2:a+" + "+b+" = "+(a+b)+"，再 × "+c,h3:"括号先算，再乘"}; },
- function(rng,M){ var b=ri(rng,3,12),c=ri(rng,2,9); var d=b*c; var a=ri(rng,5,20); var ans=d+a; return {q:d+" ÷ "+b+" + "+a+" ＝？",a:ans,h1:"先除后加",h2:d+" ÷ "+b+" = "+c+"，再加 "+a,h3:"先算除法，再加法"}; },
- function(rng,M){ var a=ri(rng,60*M,120*M),b=ri(rng,10,40),c=ri(rng,5,30); var inner=b+c; var ans=a-inner; return {q:a+" − ("+b+" + "+c+") ＝？",a:ans,h1:"先算小括号里的和",h2:b+" + "+c+" = "+inner+"，用 "+a+" 减",h3:"括号先算，再减法"}; },
- function(rng,M){ var a=ri(rng,6,15),b=ri(rng,1,6),c=ri(rng,1,6); var ans=a*(b+c); return {q:a+" × ("+b+" + "+c+") ＝？",a:ans,h1:"可以看成 "+a+" 个 "+(b+c),h2:b+" + "+c+" = "+(b+c)+"，再 × "+a,h3:"先算括号，再乘"}; }
-],
-L7:[
- function(rng,M){ var h=ri(rng,1,11); var ang=h<=6?h*30:(12-h)*30; return {q:"钟面上 "+h+" 点整，时针和分针所成的角是多少度？",a:ang,h1:h+" 点时两针相距 "+h+" 大格（超过 6 大格就折回来算）",h2:"1 大格 = 30 度，用大格数去乘 30",h3:"大格数 × 30 = 角度，算出括号里的数"}; },
- function(rng,M){ return {q:"把一个平角分成两个相等的角，每个角是多少度？",a:90,h1:"平角是 180 度",h2:"把 180 度对半分",h3:"180 ÷ 2 = 90 度"}; },
- function(rng,M){ return {q:"角的两边成一条直线，这样的角叫什么角（填度数）？",a:180,h1:"成一条直线是 180 度",h2:"这样的角叫平角",h3:"两边成直线 = 180 度"}; },
- function(rng,M){ return {q:"一个长方形中，有（）组对边互相平行。",a:2,h1:"上下一组，左右一组",h2:"数一数有几组对边",h3:"上下、左右共 2 组"}; },
- function(rng,M){ return {q:"两条平行线之间的距离处处（）。（相等填 1，不相等填 0）",a:1,h1:"量一量任意位置的宽度",h2:"平行线之间的宽度是不是都一样？",h3:"宽度处处一样，就填表示「相等」的数字"}; },
- function(rng,M){ return {q:"从一点出发，可以画（）条射线。（无数条填 1，有限条填 0）",a:1,h1:"想一个点向四面八方",h2:"方向可以随意增加吗？",h3:"能画很多条，就填表示「无数」的数字"}; },
- function(rng,M){ return {q:"从直线外一点向这条直线画线段，其中与直线垂直的那条最（）。（最短填 1，最长填 0）",a:1,h1:"点到直线的线段谁最短",h2:"垂直的那条是不是最短？",h3:"垂直线段最短，就填表示「最短」的数字"}; },
- function(rng,M){ var h=ri(rng,1,11); var ang=h<=6?h*30:(12-h)*30; var code=ang<90?1:0; return {q:"钟面上 "+h+" 点整，时针和分针所成的角是锐角还是钝角（锐角填 1，钝角填 0）？",a:code,h1:h+" 点两针相距 "+h+" 大格",h2:"用大格数 × 30 先算出度数，再和直角比一比",h3:"算出度数后和 90 度比较，决定填哪个"}; }
-],
-MK:[
- function(rng,M){ var L=ri(rng,2*M,9*M); return {q:"星光集市：一桶油 "+L+" 升，是多少毫升？",a:L*1000,h1:"升变毫升乘进率 1000",h2:L+" 升就是 "+L+" 个 1000",h3:"升数 × 1000 = 毫升数"}; },
- function(rng,M){ var d=ri(rng,12,39); var q=ri(rng,3,9*M); var n=d*q; return {q:"星光集市："+n+" ÷ "+d+" ＝？",a:q,h1:"想 "+d+" 乘几接近 "+n,h2:"试商：想 "+d+" 的几倍接近 "+n,h3:d+" × （ ）= "+n}; },
- function(rng,M){ var a=ri(rng,12*M,39*M),b=ri(rng,3,12),c=ri(rng,10,40); return {q:"星光集市："+a+" + "+b+" × "+c+" ＝？",a:a+b*c,h1:"先乘后加",h2:"先算 "+b+" × "+c+" 是多少，再和 "+a+" 相加",h3:"先乘后加"}; },
- function(rng,M){ var n1=ri(rng,2,6),c1=n1*ri(rng,3,9),n2=ri(rng,4,10); var unit=ONE_OF(rng,["钢笔","练习本"]); return {q:"星光集市：买 "+n1+" 支"+unit+"花了 "+c1+" 元，买 "+n2+" 支同样的"+unit+"要多少元？",a:c1/n1*n2,h1:"先求 1 支单价",h2:"先用总价 ÷ 支数算单价，再乘新的支数",h3:"单价 × 数量 = 总价"}; },
- function(rng,M){ return {q:"星光集市：一个长方形中，有（）组对边互相平行。",a:2,h1:"上下一组，左右一组",h2:"数一数几组对边",h3:"共 2 组"}; },
- function(rng,M){ var n=ri(rng,3,12); return {q:"星光集市：用 "+n+" 个正方体横排，从前面看到几个正方形？",a:n,h1:"一排几个看几个",h2:"从前面不遮挡",h3:n+" 个并排"}; },
- function(rng,M){ var a=ri(rng,15*M,45*M),b=ri(rng,15,45),c=ri(rng,15,45); return {q:"星光集市：三天卖货分别 "+a+"、"+b+"、"+c+" 元，一共多少元？",a:a+b+c,h1:"三个数连加",h2:a+" + "+b+" + "+c,h3:"相加得总数"}; },
- function(rng,M){ var spd=ri(rng,50,90),h=ri(rng,2,8); return {q:"星光集市：汽车每小时行 "+spd+" 千米，"+h+" 小时行多少千米？",a:spd*h,h1:"速度 × 时间 = 路程",h2:spd+" × "+h,h3:"算出路程"}; }
-]
+L1:{
+ easy:[
+  function(rng){ var L=ri(rng,2,9); return {q:"一桶油 "+L+" 升，是多少毫升？", a:L*1000, h1:"升变毫升乘 1000", h2:"1 升 = 1000 毫升", h3:"升数 × 1000 = 毫升数"}; },
+  function(rng){ var ml=ri(rng,2,9)*1000; return {q:"一瓶果汁有 "+ml+" 毫升，合多少升？", a:ml/1000, h1:"毫升变升除以 1000", h2:"看 "+ml+" 里有几个 1000", h3:"毫升数 ÷ 1000 = 升数"}; },
+  function(rng){ var n=ri(rng,2,8); return {q:n+" 升 = （ ）毫升", a:n*1000, h1:"1 升 = 1000 毫升", h2:n+" 个 1000 是多少", h3:"升变毫升乘 1000"}; },
+  function(rng){ var c=ri(rng,2,5), ml=ri(rng,2,6)*100; return {q:"一杯水 "+ml+" 毫升，喝 "+c+" 杯共多少毫升？", a:c*ml, h1:c+" 个 "+ml+" 相加", h2:c+" × "+ml, h3:"杯数 × 每杯毫升"}; },
+  function(rng){ var boxes=ri(rng,2,5), per=ri(rng,3,8); return {q:boxes+" 箱饮料每箱 "+per+" 瓶，一共多少瓶？", a:boxes*per, h1:"箱数 × 每箱瓶数", h2:boxes+" × "+per, h3:"相乘得总瓶数"}; },
+  function(rng){ var k=ri(rng,2,9); return {q:k+" 个 500 毫升的瓶子一共多少毫升？", a:k*500, h1:"瓶数 × 每瓶容量", h2:k+" × 500", h3:"算出总数"}; },
+  function(rng){ var a=ri(rng,1,4)*1000, b=ri(rng,1,6)*1000; return {q:"甲瓶 "+a+" 毫升，乙瓶 "+b+" 毫升，两瓶共多少毫升？", a:a+b, h1:"两个毫升数相加", h2:a+" + "+b, h3:"相加得到总数"}; }
+ ],
+ hard:[
+  function(rng){ var L=ri(rng,3,8), k=ri(rng,1,L-1); return {q:"一桶水 "+L+" 升，倒出 "+k+" 升后，壶里还剩多少毫升？", a:(L-k)*1000, h1:"先算剩几升", h2:L+" − "+k+" = "+(L-k)+" 升，再换毫升", h3:"剩的升数 × 1000"}; },
+  function(rng){ var B=ri(rng,3,9); var Aml=(B+ri(rng,1,5))*1000; return {q:"甲瓶有水 "+Aml+" 毫升，乙瓶有 "+B+" 升，甲瓶比乙瓶多多少毫升？", a:Aml-B*1000, h1:"单位对齐，乙瓶也换毫升", h2:B+" 升 = "+(B*1000)+" 毫升", h3:"甲毫升 − 乙毫升"}; },
+  function(rng){ var cap=ri(rng,2,6)*100; var k=ri(rng,2,5); var bottles=4*k; var total=cap*bottles; return {q:"把 "+total+" 毫升果汁分装到每个 "+cap+" 毫升的小瓶，能装满几瓶？再每 4 瓶放一箱，需要几个箱子？", a:k, h1:"先算总瓶数，再算箱数", h2:total+" ÷ "+cap+" = 瓶数，瓶数 ÷ 4", h3:"先求瓶数，再除以每箱 4 瓶"}; },
+  function(rng){ var boxes=ri(rng,2,5), per=ri(rng,4,8), ml=ri(rng,2,5)*100; var total=boxes*per*ml; return {q:"超市运来 "+boxes+" 箱饮料，每箱 "+per+" 瓶，每瓶 "+ml+" 毫升，一共多少毫升？", a:total, h1:"先算总瓶数", h2:boxes+" × "+per+" = 瓶数，再 × "+ml, h3:"瓶数 × 每瓶毫升"}; },
+  function(rng){ var L=ri(rng,2,5); var total=L*1000; var cups=ri(rng,2,5); var ans=ri(rng,1,Math.floor(total/(cups*2))); var remain=ans*cups; var drink=total-remain; return {q:L+" 升牛奶，喝了 "+drink+" 毫升，剩下的分装在 "+cups+" 毫升的杯子里，能装几杯？", a:ans, h1:"先换成毫升再减", h2:L+" 升 = "+total+" 毫升，减 "+drink, h3:"剩下的 ÷ 每杯容量"}; },
+  function(rng){ var a=ri(rng,2,6)*1000; var b=a+ri(rng,3,12)*100; return {q:"一瓶果汁 "+a+" 毫升，另一瓶比它多 "+(b-a)+" 毫升，两瓶一共多少毫升？", a:a+b, h1:"先求第二瓶", h2:"第一瓶 + 多出的 = 第二瓶，再相加", h3:"两瓶相加"}; },
+  function(rng){ var L=ri(rng,3,6); var total=L*1000; var cap2=ri(rng,2,4)*100; var ans=ri(rng,1,Math.floor((total-500)/cap2)); var remain=cap2*ans; var used=500*ri(rng,1,Math.floor((total-remain)/500)); return {q:L+" 升果汁，先用 500 毫升杯倒满 "+(used/500)+" 杯，剩下的用 "+cap2+" 毫升杯装，最多能装几杯？", a:ans, h1:"先算剩多少毫升", h2:L+" 升 = "+total+" 毫升，减已倒出的", h3:"剩下的里看有几个 "+cap2}; }
+ ]
+},
+L2:{
+ easy:[
+  function(rng){ var d=ri(rng,12,39); var q=ri(rng,3,9); var n=d*q; return {q:n+" ÷ "+d+" ＝？", a:q, h1:"想 "+d+" 乘几接近 "+n, h2:"试商", h3:d+" × （ ）= "+n}; },
+  function(rng){ var per=ri(rng,12,39), bags=ri(rng,2,9); var total=per*bags; return {q:"有 "+total+" 颗糖，每袋装 "+per+" 颗，能装几袋？", a:bags, h1:total+" 里有几个 "+per, h2:total+" ÷ "+per, h3:"总数 ÷ 每袋 = 袋数"}; },
+  function(rng){ var cls=ri(rng,12,29), per=ri(rng,18,49); var total=cls*per; return {q:"学校买来 "+total+" 本书，平均分给 "+cls+" 个班，每班多少本？", a:per, h1:"总数 ÷ 班数", h2:total+" ÷ "+cls, h3:"想 "+cls+" × 几 = "+total}; },
+  function(rng){ var spd=ri(rng,40,90), h=ri(rng,2,9); var dist=spd*h; return {q:"汽车每小时行 "+spd+" 千米，行 "+dist+" 千米要几小时？", a:h, h1:dist+" 里有几个 "+spd, h2:dist+" ÷ "+spd, h3:"路程 ÷ 速度 = 时间"}; },
+  function(rng){ var days=ri(rng,3,9), per=ri(rng,60,200); var total=days*per; return {q:"商店 "+days+" 天卖出 "+total+" 瓶汽水，平均每天卖多少瓶？", a:per, h1:"总量 ÷ 天数", h2:total+" ÷ "+days, h3:"总瓶数 ÷ 天数"}; },
+  function(rng){ var per=ri(rng,18,49), boxes=ri(rng,2,9); var total=per*boxes; return {q:"矿泉水每箱 "+per+" 瓶，进了 "+boxes+" 箱，一共多少瓶？", a:total, h1:per+" × "+boxes, h2:"先算 "+per+" × "+(boxes-1)+" 再加 "+per, h3:"每箱瓶数 × 箱数"}; },
+  function(rng){ var b=ri(rng,2,9); var q=ri(rng,3,9); var a=b*q; return {q:a+" 平均分成 "+b+" 份，每份多少？", a:q, h1:"总数 ÷ 份数", h2:a+" ÷ "+b, h3:"平均分配用除法"}; }
+ ],
+ hard:[
+  function(rng){ var d1=ri(rng,11,29), d2=ri(rng,2,9); var inner=d1*d2; var q=ri(rng,2,19); var n=inner*q; return {q:n+" ÷ ("+d1+" × "+d2+") ＝？", a:q, h1:"先算小括号里的除数", h2:d1+" × "+d2+" = "+inner+"，再用 "+n+" 去除以它", h3:"先算括号，再算除法"}; },
+  function(rng){ var per=ri(rng,12,29), boxes=ri(rng,2,6); var extra=ri(rng,1,11); var total=per*boxes+extra; return {q:"有 "+total+" 颗糖，每袋装 "+per+" 颗，最多能装满几袋？", a:boxes, h1:"看 "+total+" 里有几个整的 "+per, h2:total+" ÷ "+per, h3:"商是有几袋，余下是剩下的"}; },
+  function(rng){ var price=ri(rng,3,9); var n1=ri(rng,2,6); var cost=n1*price; var paid=cost+ri(rng,20,50); return {q:"每袋 "+price+" 元，买 "+n1+" 袋，付 "+paid+" 元，应找回多少元？", a:paid-cost, h1:"先算花了多少", h2:n1+" × "+price+" = 花掉的钱", h3:"付的钱 − 花掉的钱 = 找回"}; },
+  function(rng){ var a=ri(rng,2,6), b=ri(rng,2,6); var prod=a*b; var c=ri(rng,3,9); var total=prod*c; return {q:a+" 盒每盒 "+b+" 包，每包 "+c+" 元，一共多少元？", a:total, h1:"先算一共几包", h2:a+" × "+b+" = 包数，再 × "+c, h3:"包数 × 每包价"}; },
+  function(rng){ var d=ri(rng,13,29); var n=ri(rng,2,9)*d + ri(rng,1,d-1); return {q:n+" ÷ "+d+" ＝？ （有余数的写出商）", a:Math.floor(n/d), h1:"想 "+d+" 乘几不超过 "+n, h2:"试商后看余下多少", h3:"商是能分满的份数"}; },
+  function(rng){ var cls=ri(rng,3,6); var per=ri(rng,18,39); var extra=ri(rng,1,17); var total=cls*per+extra; return {q:"分给 "+cls+" 个班，每班 "+per+" 本，还多出 "+extra+" 本，一共多少本？", a:total, h1:"先算分掉的本数", h2:cls+" × "+per+" = 分掉的，再加多出的", h3:"分掉的 + 多出的 = 总数"}; },
+  function(rng){ var spd=ri(rng,40,90); var t1=ri(rng,2,5); var t2=ri(rng,2,5); var dist=spd*(t1+t2); return {q:"汽车每小时行 "+spd+" 千米，先开 "+t1+" 小时，又开 "+t2+" 小时，一共行多少千米？", a:dist, h1:"先算一共开几小时", h2:t1+" + "+t2+" = 总小时，再 × 速度", h3:"总时间 × 速度 = 路程"}; },
+  function(rng){ var n1=ri(rng,2,5), per1=ri(rng,10,20); var n2=ri(rng,2,5), per2=ri(rng,10,20); var total=n1*per1 + n2*per2; return {q:"买 "+n1+" 盒每盒 "+per1+" 支，又买 "+n2+" 盒每盒 "+per2+" 支，一共多少支？", a:total, h1:"两组分别算再合", h2:n1+" × "+per1+" + "+n2+" × "+per2, h3:"两积相加"}; }
+ ]
+},
+L3:{
+ easy:[
+  function(rng){ var n=ri(rng,3,12); return {q:"用 "+n+" 个同样大的正方体拼成横着的一排，从前面看到几个小正方形？", a:n, h1:"横排有几个，前面就看到几个", h2:"从前面不遮挡，一排全看见", h3:"把个数想清楚再填"}; },
+  function(rng){ var n=ri(rng,3,12); return {q:n+" 个同样的正方体竖着摞起来，从侧面看到几个正方形？", a:n, h1:"竖着摞，侧面看是一列", h2:"一列几层就看到几个", h3:"层数就是看到的个数"}; },
+  function(rng){ var r=ri(rng,2,6), c=ri(rng,2,6); return {q:r+"×"+c+" 个正方体平铺在地上，从上面看到几个正方形？", a:r*c, h1:"平铺没有遮挡", h2:"行数乘列数就是总数", h3:"想清楚行和列再乘"}; },
+  function(rng){ return {q:"观察一个长方体礼盒，一次最多能同时看到它的几个面？", a:3, h1:"想一想墙角的位置", h2:"相邻的三个面能同时看见", h3:"最多同时看到几个面"}; },
+  function(rng){ var n=ri(rng,3,12); return {q:"用 "+n+" 个正方体拼成 L 形（拐角摆放），从上面看到几个正方形？", a:n, h1:"上面看，只要摆了的都数得到", h2:"上面不遮挡", h3:"摆了几个就看到几个"}; },
+  function(rng){ var n=ri(rng,2,6); return {q:"一个物体从前面看到一行 "+n+" 个正方形，从右面也看到一行 "+n+" 个，它最少由几个正方体组成？", a:n, h1:"怎么摆能让两个方向看到的个数一样？", h2:"摆成横着的一排试试", h3:"最少就是这一排的个数"}; },
+  function(rng){ var n=ri(rng,2,6); return {q:"用同样大的正方体摆：从前面看一行 "+n+" 个，从上面看也是一行 "+n+" 个，最少几个？", a:n, h1:"横排摆放能同时满足两个方向", h2:"摆成横排", h3:"最少就是一排的个数"}; }
+ ],
+ hard:[
+  function(rng){ var c1=ri(rng,2,6), c2=ri(rng,1,c1); return {q:"用正方体搭：下层 "+c1+" 个摆一排，上层 "+c2+" 个搭在左端，从左面看到几个正方形？", a:c1, h1:"左面看最高那列有几层", h2:"最左一列叠得最高", h3:"最高层数就是看到的个数"}; },
+  function(rng){ var f=ri(rng,3,6); return {q:"一个物体从前面看到 "+f+" 个正方形排成一行，从上面看也是 "+f+" 个排成一行，从右面看是 1 个正方形，它最少由几个正方体组成？", a:f, h1:"前、上都是一行，右面只有 1 个", h2:"说明所有方块挤在靠右的一列", h3:"那一列有几个就最少几个"}; },
+  function(rng){ var r=ri(rng,2,5), c=ri(rng,2,5); return {q:r+"×"+c+" 的正方体平铺，从前面看到几个、从上面看到几个、从右面看到几个？（答右面的个数）", a:c, h1:"前面看行数、上面看全、右面看列数", h2:"右面看到的是列数", h3:"数一数列有几个"}; },
+  function(rng){ var rows=ri(rng,2,5); return {q:rows+"×"+rows+" 个正方体平铺成正方形，从前面看到几个、从右面看到几个？（答右面的个数）", a:rows, h1:"正方形平铺，前和右看到同样多", h2:"都是同样的列数", h3:"数一数列有几个"}; },
+  function(rng){ var n=ri(rng,2,6); return {q:"用 "+n+" 个正方体摆成 2 层：下层 "+n+" 个排一排，上层在右端叠 1 个。从上面看到几个正方形？", a:n, h1:"上层只加在右端，不影响上面行数", h2:"上面仍是原来那一排", h3:"数一数上面有几格"}; },
+  function(rng){ var k=ri(rng,2,5); return {q:"一个台阶状物体：第 1 层 "+k+" 个、第 2 层 "+(k-1)+" 个……最上层 1 个，从前面看到几个正方形？", a:k, h1:"每层依次少 1", h2:"正面看是阶梯，最高处有几层", h3:"最高的层数就是看到的个数"}; },
+  function(rng){ var a=ri(rng,2,6), b=ri(rng,2,6); return {q:"用正方体搭：从前面看是 "+a+" 个、从上面看是 "+b+" 个（都排成一行），从右面看是 1 个。最少需要几个正方体？", a:Math.max(a,b), h1:"前、上都是一行，右面 1 列", h2:"让方块挤成一列同时满足两个方向", h3:"取两个方向里较大的数"}; },
+  function(rng){ var n=ri(rng,3,8); return {q:"观察由 "+n+" 个同样正方体组成的物体，从前面和从上面看到的正方形个数相同，都是几？", a:n, h1:"摆成横排时两方向看到的一样多", h2:"横排前后上三个方向都相同", h3:"数一数每个方向有几个"}; }
+ ]
+},
+L4:{
+ easy:[
+  function(rng){ var a=ri(rng,15,45), b=ri(rng,15,45), c=ri(rng,15,45); var s=a+b+c; return {q:"小卖部三天卖冰棍分别 "+a+"、"+b+"、"+c+" 根，三天一共多少根？", a:s, h1:"三个数连加", h2:a+" + "+b+" + "+c, h3:"按顺序相加"}; },
+  function(rng){ var x=ri(rng,10,40); var y=x+ri(rng,3,20); return {q:"周一卖汽水 "+x+" 瓶，周二比周一多卖 "+(y-x)+" 瓶，周二卖多少瓶？", a:y, h1:"比 "+x+" 多", h2:"用周一量加多出的", h3:"用加法"}; },
+  function(rng){ var a=ri(rng,5,15), b=ri(rng,5,15), c=ri(rng,5,15), d=ri(rng,5,15); return {q:"四个小组收集易拉罐分别 "+a+"、"+b+"、"+c+"、"+d+" 个，一共多少？", a:a+b+c+d, h1:"四个数连加", h2:a+" + "+b+" + "+c+" + "+d, h3:"加出总数"}; },
+  function(rng){ var sun=ri(rng,3,7), rain=ri(rng,1,4); return {q:"一周晴天 "+sun+" 天、雨天 "+rain+" 天，晴天比雨天多几天？", a:sun-rain, h1:sun+" 和 "+rain+" 比", h2:sun+" − "+rain, h3:"用减法"}; },
+  function(rng){ var x=ri(rng,20,60); return {q:"台账星期一收入 "+x+" 元，星期二是它的 2 倍，星期二收入多少？", a:x*2, h1:"2 倍乘 2", h2:"星期一 × 2", h3:"收入 × 2"}; },
+  function(rng){ var a=ri(rng,80,120), b=a+3, c=a+6; return {q:"三人跳绳分别 "+a+"、"+b+"、"+c+" 个，平均每人跳多少？", a:a+3, h1:"先求总数再 ÷3", h2:a+" + "+b+" + "+c+" = "+(3*a+9)+"，÷3", h3:"总数 ÷ 人数"}; },
+  function(rng){ var x=ri(rng,8,20); var y=x*2-ri(rng,1,6); return {q:"喜欢橙汁 "+x+" 人，喜欢牛奶的是橙汁 2 倍少 "+(x*2-y)+" 人，牛奶多少人？", a:y, h1:"先算 2 倍再减", h2:"橙汁人数 × 2 减少的", h3:"倍数减几"}; }
+ ],
+ hard:[
+  function(rng){ var d1=ri(rng,3,8), p1=d1*ri(rng,10,20); var d2=ri(rng,3,8), p2=d2*ri(rng,15,25); return {q:"前 "+d1+" 天每天卖 "+(p1/d1)+" 包面，后 "+d2+" 天每天卖 "+(p2/d2)+" 包，一共卖多少包？", a:p1+p2, h1:"两段分别算", h2:p1+" + "+p2, h3:"两段相加"}; },
+  function(rng){ var mon=ri(rng,30,80); var tue=mon+ri(rng,5,25); var wed=tue+ri(rng,5,25); var total=mon+tue+wed; return {q:"周一收入 "+mon+" 元，周二比周一多 "+(tue-mon)+" 元，周三比周二多 "+(wed-tue)+" 元，三天共多少？", a:total, h1:"先依次算出每天", h2:"周一二三相加", h3:"三天相加"}; },
+  function(rng){ var boys=ri(rng,15,35), girls=ri(rng,15,35); var cls=ri(rng,2,5); var per=Math.floor((boys+girls)/cls); return {q:"一班男生 "+boys+" 人、女生 "+girls+" 人，平均分到 "+cls+" 个小组，每组几人？", a:per, h1:"先算总人数", h2:boys+" + "+girls+" = 总人数，再 ÷ "+cls, h3:"总人数 ÷ 组数"}; },
+  function(rng){ var x=ri(rng,10,30); var y=x*2; var z=y+ri(rng,5,20); return {q:"喜欢篮球 "+x+" 人，足球是篮球 2 倍，排球比足球多 "+(z-y)+" 人，排球多少？", a:z, h1:"先算足球，再算排球", h2:"篮球 ×2 = 足球，足球 + 多的 = 排球", h3:"依次算出"}; },
+  function(rng){ var a=ri(rng,2,6), b=ri(rng,2,6); var total=a*b; var eat=ri(rng,1,total-1); return {q:a+" 盒每盒 "+b+" 块糖，一共 "+total+" 块，吃掉 "+eat+" 块，还剩几块？", a:total-eat, h1:"先算总数", h2:a+" × "+b+" = 总数，减吃掉的", h3:"总数 − 吃掉"}; },
+  function(rng){ var up=ri(rng,40,80), down=ri(rng,30,60); var n=ri(rng,2,6); return {q:"一件上衣 "+up+" 元、裤子 "+down+" 元，买 "+n+" 套共多少？", a:(up+down)*n, h1:"先算 1 套", h2:"一套 "+(up+down)+" 元，再 × "+n, h3:"每套价 × 套数"}; },
+  function(rng){ var a=ri(rng,20,50), b=ri(rng,20,50), c=ri(rng,20,50); var avg=Math.floor((a+b+c)/3); return {q:"三个月收入分别 "+a+"、"+b+"、"+c+" 元，平均每月大约多少？", a:avg, h1:"先求和再 ÷3", h2:(a+b+c)+" ÷ 3", h3:"总数 ÷ 月数"}; }
+ ]
+},
+L5:{
+ easy:[
+  function(rng){ var n1=ri(rng,2,6), c1=n1*ri(rng,3,9), n2=ri(rng,4,10); var unit=ONE_OF(rng,["钢笔","练习本","本子","铅笔"]); return {q:"买 "+n1+" 支"+unit+"花 "+c1+" 元，买 "+n2+" 支同样的"+unit+"要多少？", a:c1/n1*n2, h1:"先求 1 支单价", h2:"总价 ÷ 支数 = 单价，再 × "+n2, h3:"单价 × 数量"}; },
+  function(rng){ var boxes=ri(rng,2,6), price=boxes*ri(rng,20,60), boxes2=ri(rng,3,10); return {q:boxes+" 箱苹果 "+price+" 元，"+boxes2+" 箱同样的苹果多少？", a:price/boxes*boxes2, h1:"先求 1 箱价", h2:"总价 ÷ 箱数 = 每箱价，再 × "+boxes2, h3:"每箱价 × 箱数"}; },
+  function(rng){ var r=ri(rng,15,40), h=ri(rng,3,9); return {q:"每小时加工 "+r+" 个，"+h+" 小时加工多少？", a:r*h, h1:"每小时 × 小时数", h2:r+" × "+h, h3:"效率 × 时间"}; },
+  function(rng){ var spd=ri(rng,50,90), h=ri(rng,2,8); return {q:"汽车每小时行 "+spd+" 千米，"+h+" 小时行多少？", a:spd*h, h1:"速度 × 时间 = 路程", h2:spd+" × "+h, h3:"算路程"}; },
+  function(rng){ var boxes=ri(rng,3,7), per=ri(rng,15,30); var total=boxes*per; var sold=ri(rng,1,total-1); return {q:"运来 "+boxes+" 箱橘子每箱 "+per+" 个，卖出 "+sold+" 个，还剩多少？", a:total-sold, h1:"先算总共", h2:boxes+" × "+per+" = 总数，减 "+sold, h3:"总数 − 卖出"}; },
+  function(rng){ var pages=ri(rng,60,140), per=ri(rng,10,25), days=ri(rng,3,6); var read=per*days; return {q:"一本 "+pages+" 页书，每天看 "+per+" 页，看 "+days+" 天，剩几页？", a:pages-read, h1:"先算已看", h2:per+" × "+days+" = "+read, h3:"总页 − 已看"}; },
+  function(rng){ var up=ri(rng,40,80), down=ri(rng,30,60), n=ri(rng,2,6); return {q:"上衣 "+up+" 元、裤子 "+down+" 元，买 "+n+" 套共多少？", a:(up+down)*n, h1:"先算 1 套", h2:"一套 "+(up+down)+" 元，再 × "+n, h3:"每套价 × 套数"}; }
+ ],
+ hard:[
+  function(rng){ var price=ri(rng,3,9); var n1=ri(rng,2,6); var n2=ri(rng,2,6); var rpen=ri(rng,5,12); var cost=n1*price+n2*rpen; return {q:"钢笔每支 "+price+" 元，买 "+n1+" 支钢笔和 "+n2+" 支圆珠笔共花 "+cost+" 元，圆珠笔每支多少？", a:rpen, h1:"先算钢笔花了多少", h2:n1+" × "+price+" = 钢笔钱，总钱 − 它", h3:"剩下的 ÷ 圆珠笔支数"}; },
+  function(rng){ var a=ri(rng,2,6), b=ri(rng,2,6); var total=a*b; var have=ri(rng,1,total); return {q:"要做 "+a+" 排每排 "+b+" 面小旗，已经做了 "+have+" 面，还要做几面？", a:total-have, h1:"先算一共要做", h2:a+" × "+b+" = 总数，减已做", h3:"总数 − 已做"}; },
+  function(rng){ var per=ri(rng,3,8); var d1=ri(rng,2,6), d2=ri(rng,2,6); var save=(d1+d2)*per; return {q:"每天存 "+per+" 元，前 "+d1+" 天加后 "+d2+" 天，一共存多少？", a:save, h1:"先算共几天", h2:d1+" + "+d2+" = 总天数，再 × "+per, h3:"总天数 × 每天存"}; },
+  function(rng){ var r=ri(rng,12,30), days=ri(rng,2,6), extra=ri(rng,5,30); var total=r*days+extra; return {q:"前 "+days+" 天每天修 "+r+" 米，最后一天多修 "+extra+" 米，一共修多少？", a:total, h1:"先算前些天", h2:r+" × "+days+" = 前面，再加最后", h3:"前面的 + 最后的"}; },
+  function(rng){ var x=ri(rng,2,5), y=x+ri(rng,1,4); var total=ri(rng,20,60); return {q:x+" 个大人带 "+y+" 个小孩，一组 "+(x+y)+" 人，共有 "+total+" 人，能分成几组？", a:Math.floor(total/(x+y)), h1:"先算一组几人", h2:"大人+小孩 = 一组人数，总数 ÷ 它", h3:"总分 ÷ 每组"}; },
+  function(rng){ var p=ri(rng,4,10), n=ri(rng,2,6), disc=ri(rng,1,5); var pay=p*n-disc; return {q:"每本 "+p+" 元，买 "+n+" 本，优惠 "+disc+" 元，实付多少？", a:pay, h1:"先算原价", h2:p+" × "+n+" = 原价，减优惠", h3:"原价 − 优惠"}; },
+  function(rng){ var a=ri(rng,3,8), b=ri(rng,3,8); var sum=a+b; var each=ri(rng,2,6); var total=sum; var a2=Math.floor(total/each); return {q:"甲筐 "+a+" 个、乙筐 "+b+" 个（两筐相差 "+(Math.abs(a-b))+" 个），平均分给 "+each+" 桌，每桌几个？", a:a2, h1:"先算总数，再 ÷桌数", h2:"甲+乙 = "+sum+"，÷ "+each, h3:"总数 ÷ 桌数"}; }
+ ]
+},
+L6:{
+ easy:[
+  function(rng){ var a=ri(rng,12,39), b=ri(rng,3,12), c=ri(rng,10,40); var ans=a+b*c; return {q:a+" + "+b+" × "+c+" ＝？", a:ans, h1:"先乘后加", h2:"先算 "+b+" × "+c, h3:"先乘后加"}; },
+  function(rng){ var a=ri(rng,20,60), b=ri(rng,5,30), c=ri(rng,2,9); var inner=a-b; var ans=inner*c; return {q:"("+a+" − "+b+") × "+c+" ＝？", a:ans, h1:"先算括号差", h2:a+" − "+b, h3:"括号先算再乘"}; },
+  function(rng){ var a=ri(rng,6,12), b=ri(rng,5,15), c=ri(rng,10,40); var ans=a*b-c; return {q:a+" × "+b+" − "+c+" ＝？", a:ans, h1:"先乘后减", h2:a+" × "+b, h3:"先乘后减"}; },
+  function(rng){ var b=ri(rng,3,12), c=ri(rng,2,9); var d=b*c; var a=d+ri(rng,10,40); var ans=a-d; return {q:a+" − "+b+" × "+c+" ＝？", a:ans, h1:"先乘后减", h2:b+" × "+c, h3:"先乘后减"}; },
+  function(rng){ var a=ri(rng,10,30), b=ri(rng,5,25), c=ri(rng,3,12); var ans=(a+b)*c; return {q:c+" × ("+a+" + "+b+") ＝？", a:ans, h1:"先算括号和", h2:a+" + "+b, h3:"括号先算再乘"}; },
+  function(rng){ var b=ri(rng,3,12), c=ri(rng,2,9); var d=b*c; var a=ri(rng,5,20); var ans=d+a; return {q:d+" ÷ "+b+" + "+a+" ＝？", a:ans, h1:"先除后加", h2:d+" ÷ "+b, h3:"先除后加"}; },
+  function(rng){ var a=ri(rng,60,120), b=ri(rng,10,40), c=ri(rng,5,30); var inner=b+c; var ans=a-inner; return {q:a+" − ("+b+" + "+c+") ＝？", a:ans, h1:"先算括号和", h2:b+" + "+c, h3:"括号先算再减"}; }
+ ],
+ hard:[
+  function(rng){ var a=ri(rng,10,30), b=ri(rng,3,9), c=ri(rng,2,6), d=ri(rng,5,20); var ans=(a+b)*c - d; return {q:"("+a+" + "+b+") × "+c+" − "+d+" ＝？", a:ans, h1:"先算括号，再乘，最后减", h2:"("+a+"+"+b+")="+(a+b)+"，×"+c+"，减"+d, h3:"括号→乘→减"}; },
+  function(rng){ var a=ri(rng,20,50), b=ri(rng,4,12), c=ri(rng,3,9), d=ri(rng,2,8); var inner=a-b; var ans=inner*c + d; return {q:"("+a+" − "+b+") × "+c+" + "+d+" ＝？", a:ans, h1:"先括号差，再乘，再加", h2:"("+a+"−"+b+")="+(a-b)+"，×"+c+"，+"+d, h3:"括号→乘→加"}; },
+  function(rng){ var a=ri(rng,8,20), b=ri(rng,2,9), c=ri(rng,3,10), d=ri(rng,2,9); var ans=a*(b+c) - d; return {q:a+" × ("+b+" + "+c+") − "+d+" ＝？", a:ans, h1:"先括号和，再乘，再减", h2:"("+b+"+"+c+")="+(b+c)+"，×"+a+"，−"+d, h3:"括号→乘→减"}; },
+  function(rng){ var a=ri(rng,30,80), b=ri(rng,5,20), c=ri(rng,3,10), d=ri(rng,5,25); var ans=a - (b*c + d); return {q:a+" − ("+b+" × "+c+" + "+d+") ＝？", a:ans, h1:"先算括号里的乘加", h2:b+"×"+c+"="+(b*c)+"，+"+d+"，用"+a+"减", h3:"括号内先算，再被减"}; },
+  function(rng){ var a=ri(rng,6,15), b=ri(rng,2,6), c=ri(rng,2,6), d=ri(rng,3,9); var ans=a*b + c*d; return {q:a+" × "+b+" + "+c+" × "+d+" ＝？", a:ans, h1:"两个乘法先分别算，再加", h2:a+"×"+b+" 和 "+c+"×"+d, h3:"两积相加"}; },
+  function(rng){ var a=ri(rng,50,90), b=ri(rng,2,6), c=ri(rng,2,6), d=ri(rng,2,8); var inner=a-b*c; var divs=[]; for(var x2=2;x2<=8;x2++) if(inner%x2===0) divs.push(x2); var d2=divs[Math.floor(rng()*divs.length)]; var ans=inner/d2; return {q:"("+a+" − "+b+" × "+c+") ÷ "+d2+" ＝？", a:ans, h1:"先算括号里的减乘", h2:b+"×"+c+"="+(b*c)+"，"+a+"− 它", h3:"括号结果 ÷ "+d2}; },
+  function(rng){ var a=ri(rng,12,30), b=ri(rng,3,9), c=ri(rng,4,12), d=ri(rng,3,9); var ans=a + b*(c - d); return {q:a+" + "+b+" × ("+c+" − "+d+") ＝？", a:ans, h1:"先算括号里的差，再乘，再加", h2:"("+c+"−"+d+")="+(c-d)+"，×"+b+"，+"+a, h3:"括号→乘→加"}; }
+ ]
+},
+L7:{
+ easy:[
+  function(rng){ var h=ri(rng,1,11); var ang=h<=6?h*30:(12-h)*30; return {q:"钟面 "+h+" 点整，时针分针成几度？", a:ang, h1:h+" 点相距 "+h+" 大格", h2:"1 大格 = 30 度，用大格数去乘", h3:"大格数 × 30 = 角度"}; },
+  function(rng){ return {q:"平角分成两个相等的角，每个几度？", a:90, h1:"平角是 180 度", h2:"把 180 度平均分", h3:"对半分后是多少"}; },
+  function(rng){ return {q:"角的两边成一条直线，是几度？", a:180, h1:"成直线就是平角", h2:"平角的度数", h3:"它是多少度"}; },
+  function(rng){ return {q:"长方形中有几组对边互相平行？", a:2, h1:"上下是一组，左右是一组", h2:"数一数有几组对边", h3:"想清楚有几组"}; },
+  function(rng){ return {q:"平行线间的距离处处（相等填 1，不相等填 0）？", a:1, h1:"量一量不同位置的宽度", h2:"宽度是不是都一样", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"从一点出发能画几条射线（无数条填 1，有限条填 0）？", a:1, h1:"一个点向四面八方都能画", h2:"方向能一直加吗", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"直线外一点到这条直线，垂线段最（短填 1，长填 0）？", a:1, h1:"点到直线的线段谁最短", h2:"垂直的那条是不是最短", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"直角是多少度？", a:90, h1:"三角尺上那个方方的角", h2:"它是基本角", h3:"想它是多少度"}; },
+  function(rng){ return {q:"周角是多少度？", a:360, h1:"转一整圈", h2:"一圈的度数", h3:"它是多少度"}; },
+  function(rng){ return {q:"平角是直角的几倍？", a:2, h1:"平角 180，直角 90", h2:"180 里包含几个 90", h3:"算一算几倍"}; },
+  function(rng){ return {q:"锐角比直角（小填 1，大填 0）？", a:1, h1:"锐角尖尖的", h2:"和直角比一比", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"钝角比直角（大填 1，小填 0）？", a:1, h1:"钝角张得更开", h2:"和直角比一比", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"一个长方形有几个直角？", a:4, h1:"四个角都是方方的", h2:"数一数四个角", h3:"它有几个直角"}; },
+  function(rng){ return {q:"正方形的对边互相（平行填 1，垂直填 0）？", a:1, h1:"对边是横和竖两组", h2:"它们朝一个方向不相交", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"两条直线相交成直角时，这两条直线互相（垂直填 1，平行填 0）？", a:1, h1:"成直角的两条线", h2:"它们的关系叫什么", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"过直线外一点，能画（1 条填 1，无数条填 0）已知直线的垂线？", a:1, h1:"垂线是唯一确定的", h2:"只能画一条", h3:"判断后填 1 或 0"}; },
+  function(rng){ return {q:"钟面 3 点整，时针分针夹角多少度？", a:90, h1:"3 点相距 3 大格", h2:"每大格 30 度", h3:"3 大格是多少度"}; },
+  function(rng){ return {q:"钟面 6 点整，时针分针夹角多少度？", a:180, h1:"6 点两针成一条直线", h2:"成直线是平角", h3:"是多少度"}; },
+  function(rng){ return {q:"一个 30° 的角，用放大镜看还是几度？", a:30, h1:"放大镜只放大边，不变角度", h2:"角的大小看张开", h3:"它还是几度"}; },
+  function(rng){ return {q:"长方形和正方形都一定有（4 填 4，3 填 3）个直角？", a:4, h1:"两种图形四个角都是方的", h2:"数一数", h3:"填对应的数"}; },
+  function(rng){ return {q:"三角尺上最大的角是（直角填 1，锐角填 0）？", a:1, h1:"那个方方的角最大", h2:"它是什么角", h3:"判断后填 1 或 0"}; }
+ ],
+ hard:[
+  function(rng){ var h=ri(rng,1,11); var ang=h<=6?h*30:(12-h)*30; var code=ang<90?1:0; return {q:"钟面 "+h+" 点整，时针分针成锐角还是钝角（锐角填1/钝角填0）？", a:code, h1:h+" 点相距 "+h+" 大格", h2:"度数 = 大格×30，和 90 比", h3:"判断后填 1 或 0"}; },
+  function(rng){ var h1=ri(rng,1,11), h2=ri(rng,1,11); var a1=h1<=6?h1*30:(12-h1)*30; var a2=h2<=6?h2*30:(12-h2)*30; var diff=Math.abs(a1-a2); return {q:"钟面 "+h1+" 点和 "+h2+" 点整，时针分针夹角相差几度？", a:diff, h1:"分别算两个角", h2:"各自大格×30，再相减", h3:"两角相减取差"}; },
+  function(rng){ var a=ri(rng,20,70); var b=ri(rng,20,70); var sum=a+b; return {q:a+"° 和 "+b+"° 拼在一起，是钝角吗（钝角填1/不是填0）？", a:(sum>90&&sum<180)?1:0, h1:"先求和", h2:a+"+"+b+"="+sum, h3:"判断后填 1 或 0"}; },
+  function(rng){ var n=ri(rng,2,6); var ang=n*30; return {q:n+" 个大格一共几度？这样的角是（锐角填1/直角填2/钝角填0）？", a: ang<90?1:(ang===90?2:0), h1:"1 大格 30 度", h2:n+" × 30 = "+ang, h3:"按度数分类填对应数字"}; },
+  function(rng){ var deg=ri(rng,2,5)*30; var code=deg<90?1:(deg===90?2:0); return {q:deg+"° 的角是（锐角填1/直角填2/钝角填0）？", a:code, h1:"和 90 比", h2:deg+" 与 90 比较", h3:"分类填对应数字"}; },
+  function(rng){ var m=ri(rng,2,4), n=ri(rng,2,4); return {q:"一个图形有 "+m+" 组平行线和 "+n+" 组垂线，一共有几组特殊的线（平行+垂直）？", a:m+n, h1:"两类相加", h2:m+" + "+n, h3:"相加得总数"}; },
+  function(rng){ var a=ri(rng,15,45), b=ri(rng,15,45); var ans=Math.floor(a/b); return {q:a+"° 的角里，包含几个完整的 "+b+"°？", a:ans, h1:"看 a 里有几个 b", h2:a+" ÷ "+b, h3:"整除的个数"}; }
+ ]
+},
+MK:{
+ easy:[
+  function(rng){ var L=ri(rng,2,9); return {q:"星光集市：一桶油 "+L+" 升，是多少毫升？", a:L*1000, h1:"升×1000", h2:L+" 个1000", h3:"升变毫升"}; },
+  function(rng){ var d=ri(rng,12,39); var q=ri(rng,3,9); var n=d*q; return {q:"星光集市："+n+" ÷ "+d+" ＝？", a:q, h1:"想 d×几", h2:"试商", h3:d+"×（ ）"}; },
+  function(rng){ var a=ri(rng,12,39), b=ri(rng,3,12), c=ri(rng,10,40); return {q:"星光集市："+a+" + "+b+" × "+c+" ＝？", a:a+b*c, h1:"先乘后加", h2:"先算 b×c", h3:"先乘后加"}; },
+  function(rng){ var n1=ri(rng,2,6), c1=n1*ri(rng,3,9), n2=ri(rng,4,10); var unit=ONE_OF(rng,["钢笔","练习本"]); return {q:"星光集市：买 "+n1+" 支"+unit+"花 "+c1+" 元，买 "+n2+" 支同样的要多少？", a:c1/n1*n2, h1:"先求单价", h2:"总价÷支数", h3:"单价×数量"}; },
+  function(rng){ var a=ri(rng,15,45), b=ri(rng,15,45), c=ri(rng,15,45); return {q:"星光集市：三天卖货分别 "+a+"、"+b+"、"+c+" 元，一共多少？", a:a+b+c, h1:"连加", h2:a+"+"+b+"+"+c, h3:"相加"}; },
+  function(rng){ var n=ri(rng,3,12); return {q:"星光集市：用 "+n+" 个正方体横排，前面看到几个？", a:n, h1:"一排几个", h2:"不遮挡", h3:"数一数几个"}; },
+  function(rng){ var spd=ri(rng,50,90), h=ri(rng,2,8); return {q:"星光集市：汽车每小时行 "+spd+" 千米，"+h+" 小时行多少？", a:spd*h, h1:"速度×时间", h2:spd+"×"+h, h3:"路程"}; }
+ ],
+ hard:[
+  function(rng){ var L=ri(rng,3,8), k=ri(rng,1,L-1); return {q:"星光集市：一桶水 "+L+" 升，倒出 "+k+" 升后，剩多少毫升？", a:(L-k)*1000, h1:"先算剩几升", h2:L+"−"+k+"=升，换毫升", h3:"×1000"}; },
+  function(rng){ var d1=ri(rng,11,29), d2=ri(rng,2,9); var inner=d1*d2; var q=ri(rng,2,19); var n=inner*q; return {q:"星光集市："+n+" ÷ ("+d1+" × "+d2+") ＝？", a:q, h1:"先算括号", h2:d1+"×"+d2, h3:"括号先算"}; },
+  function(rng){ var boxes=ri(rng,2,5), per=ri(rng,4,8), ml=ri(rng,2,5)*100; var total=boxes*per*ml; return {q:"星光集市：运来 "+boxes+" 箱，每箱 "+per+" 瓶，每瓶 "+ml+" 毫升，共多少毫升？", a:total, h1:"先算瓶数", h2:boxes+"×"+per, h3:"瓶数×毫升"}; },
+  function(rng){ var a=ri(rng,10,30), b=ri(rng,3,9), c=ri(rng,2,6), d=ri(rng,5,20); var ans=(a+b)*c - d; return {q:"星光集市：("+a+" + "+b+") × "+c+" − "+d+" ＝？", a:ans, h1:"括号→乘→减", h2:"("+a+"+"+b+")", h3:"分步算"}; },
+  function(rng){ var x=ri(rng,2,5), y=x+ri(rng,1,4); var total=ri(rng,20,60); return {q:"星光集市："+x+" 个大人带 "+y+" 个小孩一组，共 "+total+" 人，能分几组？", a:Math.floor(total/(x+y)), h1:"一组几人", h2:"大人+小孩", h3:"总分÷每组"}; },
+  function(rng){ var a=ri(rng,20,50), b=ri(rng,20,50), c=ri(rng,20,50); var avg=Math.floor((a+b+c)/3); return {q:"星光集市：三个月收入 "+a+"、"+b+"、"+c+" 元，平均每月大约多少？", a:avg, h1:"先求和÷3", h2:(a+b+c)+" ÷ 3", h3:"总数÷3"}; },
+  function(rng){ var h=ri(rng,1,11); var ang=h<=6?h*30:(12-h)*30; var code=ang<90?1:0; return {q:"星光集市：钟面 "+h+" 点整，时针分针成锐角还是钝角（锐1/钝0）？", a:code, h1:h+" 点大格", h2:"度数和90比", h3:"分类填数"}; },
+  function(rng){ var price=ri(rng,3,9); var n1=ri(rng,2,6); var n2=ri(rng,2,6); var rpen=ri(rng,5,12); var cost=n1*price+n2*rpen; return {q:"星光集市：钢笔每支 "+price+" 元，买 "+n1+" 支钢笔和 "+n2+" 支圆珠笔共 "+cost+" 元，圆珠笔每支几元？", a:rpen, h1:"先算钢笔钱", h2:n1+"×"+price, h3:"剩下的÷圆珠笔数"}; }
+ ]
+}
 };
 
-/* 生成约 CONFIG.bankSize 道题的固定题库，运行时随机抽 */
 var BANK = (function(){
   var arr = [];
-  var per = Math.floor(CONFIG.bankSize / (LEVELS.length * 2));
+  var per = 25; // 400 / (8 levels * 2 diff)
+  var LEVELS = [
+    {id:"L1"},{id:"L2"},{id:"L3"},{id:"L4"},{id:"L5"},{id:"L6"},{id:"L7"},{id:"MK"}
+  ];
   LEVELS.forEach(function(lv){
     ["easy","hard"].forEach(function(diff){
-      var M = CONFIG.difficultyScale * (diff==="hard" ? 1.5 : 1);
-      var tmpls = TEMPLATES[lv.id] || [];
+      var tmpls = (TEMPLATES[lv.id] && TEMPLATES[lv.id][diff]) || [];
       if(!tmpls.length) return;
-      var rng = mulberry32(hashStr(lv.id + diff + "BANKv1"));
+      var rng = mulberry32(hashStr(lv.id + diff + "BANKv2"));
       var seen = {}, made = 0, guard = 0;
-      while(made < per && guard < per * 80){
+      while(made < per && guard < per * 200){
         guard++;
         var t = tmpls[Math.floor(rng() * tmpls.length)];
-        var q = t(rng, M);
+        var q = t(rng);
         if(!q || !isInt(q.a)) continue;
         var sig = lv.id + "|" + q.q;
         if(seen[sig]) continue;
@@ -441,6 +537,7 @@ var BANK = (function(){
   });
   return arr;
 })();
+
 
 function getBankFor(levelId, diff){
   return BANK.filter(function(b){ return b.levelId===levelId && b.diff===diff; });
