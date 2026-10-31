@@ -46,6 +46,16 @@ h2{color:#8b5a2b;font-size:19px;margin:4px 0 10px;border-left:5px solid #c8a484;
 .ans{flex:1;border:2px solid #c8a484;border-radius:12px;padding:12px 14px;font-size:20px;color:#4a3418;background:#fffdf8;outline:none;min-width:0}
 .ans:focus{border-color:#8b5a2b}
 .tools{display:flex;gap:10px;margin-top:12px}
+/* 数字软键盘（自定义，避免调用系统键盘） */
+.keysheet{position:fixed;left:0;right:0;bottom:0;background:#fff8ee;border-top:3px solid #f0c98a;box-shadow:0 -6px 18px rgba(120,80,30,.18);padding:10px 10px calc(12px + env(safe-area-inset-bottom));z-index:40;display:none}
+.keysheet.on{display:block}
+.keysheet .ks-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;max-width:440px;margin:0 auto 8px}
+.keysheet .ks-bar .t{font-size:13px;color:#9a6a32}
+.keysheet .echo{font-size:22px;font-weight:700;color:#5a3b1a;min-width:36px;text-align:center;flex:1}
+.keysheet .ks-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:440px;margin:0 auto}
+.keysheet .ks-grid button{font-size:24px;font-weight:700;padding:15px 0;border:none;border-radius:14px;background:#fff;color:#5a3b1a;box-shadow:0 3px 0 #e6c79a;cursor:pointer}
+.keysheet .ks-grid button:active{transform:translateY(2px);box-shadow:0 1px 0 #e6c79a}
+.keysheet .ks-grid button.k-fn{background:#fdeccd;color:#a96b22;font-size:18px}
 .tier{border-radius:12px;padding:10px 14px;margin-top:10px;font-size:15px;line-height:1.7;display:none}
 .tier.on{display:block}
 .t1{background:#eaf6e4;color:#3d6b2f}
@@ -177,12 +187,13 @@ input.num{width:90px;border:2px solid #e2d4c2;border-radius:8px;padding:6px 10px
     <div class="tier t2" id="tier2"><div class="tt">🎴 锦囊卡片</div><div id="tier2txt"></div></div>
     <div class="tier t3" id="tier3"><div class="tt">📖 示范思路（照着想，答案自己填）</div><div id="tier3txt"></div></div>
     <div class="ans-row">
-      <input class="ans" id="ansInput" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="写下你的答案" autocomplete="off">
+      <input class="ans" id="ansInput" type="text" inputmode="numeric" readonly placeholder="点下面的数字键盘写答案" autocomplete="off">
       <button class="btn" id="btnAns">提交</button>
     </div>
     <div class="tools">
       <button class="btn light" id="btnRead">🔊 朗读题目</button>
       <button class="btn light" id="btnPad">✏️ 草稿板</button>
+      <button class="btn light" id="btnKey">🔢 键盘</button>
       <button class="btn ghost" id="btnQuit">回院子</button>
     </div>
   </div>
@@ -291,6 +302,24 @@ input.num{width:90px;border:2px solid #e2d4c2;border-radius:8px;padding:6px 10px
     <button class="btn" id="padClose">收起</button>
   </div>
 </div></div>
+
+<!-- 数字软键盘 -->
+<div class="keysheet" id="m-key">
+  <div class="ks-bar">
+    <span class="t">🔢 数字键盘</span>
+    <span id="keyEcho" class="echo"></span>
+    <span>
+      <button type="button" class="btn ok" id="keySubmit" style="padding:5px 14px;font-size:15px;margin-right:6px">✓ 提交</button>
+      <button type="button" class="btn light" id="keyHide" style="padding:5px 12px;font-size:13px">隐藏 ▲</button>
+    </span>
+  </div>
+  <div class="ks-grid" id="ksGrid">
+    <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+    <button type="button" class="k-fn" data-k="C">清空</button><button type="button" data-k="0">0</button><button type="button" class="k-fn" data-k="⌫">⌫</button>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -600,7 +629,7 @@ function showView(name){
   if(name==="storage") renderStorage();
   window.scrollTo(0,0);
 }
-function goHome(){ R=null; showView("home"); }
+function goHome(){ R=null; closeKey(); showView("home"); }
 
 /* ================= 解锁规则 ================= */
 function levelUnlocked(i){
@@ -665,9 +694,10 @@ function renderQ(){
   $("qProg").textContent = "第 "+(R.idx+1)+" / "+R.qs.length+" 题";
   $("qText").textContent = item[0];
   $("ansInput").value = "";
+  var e0=$("keyEcho"); if(e0) e0.textContent="";
   $("btnAns").className = "btn";
   $("tier1").className="tier t1"; $("tier2").className="tier t2"; $("tier3").className="tier t3";
-  $("ansInput").focus();
+  openKey();
 }
 function submitAns(){
   if(!R) return;
@@ -738,6 +768,7 @@ $("prBtn").onclick = function(){
 };
 
 function finishLevel(){
+  closeKey();
   var lv = curLv();
   var first = false;
   if(lv.id==="MK"){
@@ -791,6 +822,23 @@ $("btnRead").onclick = function(){
 $("btnAns").onclick = submitAns;
 $("ansInput").addEventListener("keydown", function(e){ if(e.key==="Enter") submitAns(); });
 $("btnQuit").onclick = goHome;
+/* ===== 数字软键盘 ===== */
+function keyVal(){ return $("ansInput").value || ""; }
+function keySet(v){ $("ansInput").value=v; var e=$("keyEcho"); if(e) e.textContent=v; }
+function keyAppend(d){ var v=keyVal(); if(v==="0") v=""; if(v.length>=8) return; keySet(v+d); }
+function keyBack(){ keySet(keyVal().slice(0,-1)); }
+function keyClear(){ keySet(""); }
+function openKey(){ $("m-key").className="keysheet on"; }
+function closeKey(){ $("m-key").className="keysheet"; }
+$("ksGrid").addEventListener("click", function(e){
+  var b = e.target.closest ? e.target.closest("button") : (e.target.tagName==="BUTTON"?e.target:null);
+  if(!b) return;
+  var k=b.getAttribute("data-k");
+  if(k==="C") keyClear(); else if(k==="⌫") keyBack(); else keyAppend(k);
+});
+$("keyHide").onclick = closeKey;
+$("btnKey").onclick = openKey;
+$("keySubmit").onclick = submitAns;
 
 /* ================= 插画屋 ================= */
 function renderGallery(){
