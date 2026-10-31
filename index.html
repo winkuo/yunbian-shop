@@ -716,6 +716,7 @@ function submitAns(){
     }
     var praiseText = PRAISE[Math.floor(Math.random()*PRAISE.length)] + (drop?" "+drop:"");
     $("btnAns").className = "btn ok";          // 答对：提交按钮变绿
+    chimeOk();                                  // 答对欢快音效
     showPraise("⭐ 星光 +1", praiseText, praiseText, function(){
       $("btnAns").className = "btn";          // 恢复
       R.idx++;
@@ -723,6 +724,7 @@ function submitAns(){
     });
   }else{
     R.wrong++;
+    toneErr();                                  // 答错柔和提示音
     var t = Math.min(R.wrong,3);
     if(t>=1){ $("tier1txt").textContent=item[2]; $("tier1").className="tier t1 on"; }
     if(t>=2){ $("tier2txt").textContent=item[3]; $("tier2").className="tier t2 on"; }
@@ -734,20 +736,78 @@ function submitAns(){
 }
 var praiseQueue = null;
 var praiseAudio = null;
-/* 朗读文本（外婆语音）。优先用 CONFIG.grandmaAudio 真实录音；否则用有道美音（女声）朗读，即“王莹莹的声音”。
+/* 朗读文本（外婆语音）。
+   优先级：① 若填了 CONFIG.grandmaAudio 真实录音则用录音；
+           ② 否则用设备自带的中文语音（Web Speech API，离线可用、最稳）——这就是“王莹莹的声音”；
+           ③ 再不行才退回有道美音音频。
    onEnd 在音频播放完毕后回调（出错或超时也兜底回调，保证弹框一定会消失）。 */
+var zhVoice = null;
+function pickVoice(){
+  try{
+    if(!('speechSynthesis' in window)) return;
+    var vs = window.speechSynthesis.getVoices() || [];
+    zhVoice = vs.filter(function(v){ return /zh|cmn|Chinese/i.test(v.lang); })
+                 .find(function(v){ return /female|女|婷|小|Hui|Ya|Mei|Xiaoxiao|Yaoyao|彤|琳|雪|萍|Ting|Yu|Lan/i.test(v.name); })
+           || vs.find(function(v){ return /zh|cmn|Chinese/i.test(v.lang); })
+           || null;
+  }catch(e){}
+}
+if('speechSynthesis' in window){ pickVoice(); window.speechSynthesis.onvoiceschanged = pickVoice; }
+
+/* 简单音效（WebAudio，无需联网）：上行=答对欢快，下行=答错柔和 */
+var _actx = null;
+function _ac(){ if(!_actx){ try{ _actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(_actx && _actx.state==='suspended'){ try{ _actx.resume(); }catch(e){} } return _actx; }
+function tone(freq, dur, type, when, vol){
+  var c=_ac(); if(!c) return;
+  var o=c.createOscillator(), g=c.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  var t0=c.currentTime+(when||0);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol||0.2, t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t0); o.stop(t0+dur+0.03);
+}
+function chimeOk(){ tone(660,0.16,'sine',0,0.22); tone(880,0.28,'sine',0.12,0.22); }
+function toneErr(){ tone(392,0.16,'triangle',0,0.18); tone(294,0.28,'triangle',0.14,0.18); }
+
 function speak(text, onEnd){
   var done = false;
   function finish(){ if(done) return; done = true; if(onEnd) onEnd(); }
+  text = (text||"").replace(/[🌟⭐🔊🔢✏️🎴📖💡🧺🏪]/g,""); // 去掉 emoji，避免语音读符号
+  // 1) 设备中文语音（外婆声音）
   try{
-    var url = CONFIG.grandmaAudio
-      ? CONFIG.grandmaAudio
-      : "https://dict.youdao.com/dictvoice?type=2&audio=" + encodeURIComponent(text);
-    var a = new Audio(url);
-    a.onended = finish; a.onerror = finish;
-    var t = setTimeout(finish, 8000);          // 兜底：最长 8 秒后必定消失
-    a.play().catch(finish);
-    return a;
+    if('speechSynthesis' in window && window.speechSynthesis){
+      try{ window.speechSynthesis.cancel(); }catch(e){}
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      if(zhVoice) u.voice = zhVoice;
+      u.rate = 0.95; u.pitch = 1.0;
+      var t3 = setTimeout(finish, 9000);
+      u.onend = function(){ clearTimeout(t3); finish(); };
+      u.onerror = function(){ clearTimeout(t3); finish(); };
+      window.speechSynthesis.speak(u);
+      return { pause:function(){ try{ window.speechSynthesis.cancel(); }catch(e){} } };
+    }
+  }catch(e){}
+  // 2) 真实录音
+  try{
+    if(CONFIG.grandmaAudio){
+      var a = new Audio(CONFIG.grandmaAudio);
+      var t = setTimeout(finish, 8000);
+      a.onended = function(){ clearTimeout(t); finish(); }; a.onerror = function(){ clearTimeout(t); finish(); };
+      a.play().catch(finish);
+      return a;
+    }
+  }catch(e){}
+  // 3) 有道美音兜底（联网）
+  try{
+    var url = "https://dict.youdao.com/dictvoice?type=2&audio=" + encodeURIComponent(text);
+    var a2 = new Audio(url);
+    var t2 = setTimeout(finish, 8000);
+    a2.onended = function(){ clearTimeout(t2); finish(); }; a2.onerror = function(){ clearTimeout(t2); finish(); };
+    a2.play().catch(finish);
+    return a2;
   }catch(e){ setTimeout(finish, 50); return null; }
 }
 function showPraise(emoji,msg,audioText,cb){
@@ -794,13 +854,10 @@ function finishLevel(){
   showView("result");
 }
 
-/* 朗读题目：有道美音，只读题干 */
+/* 朗读题目：优先设备中文语音，只读题干 */
 $("btnRead").onclick = function(){
   if(!R) return;
-  try{
-    var u = "https://dict.youdao.com/dictvoice?type=2&audio=" + encodeURIComponent(R.qs[R.idx][0]);
-    var a = new Audio(u); a.play();
-  }catch(e){ toast("朗读需要联网，当前不可用"); }
+  speak(R.qs[R.idx][0]);
 };
 
 /* ================= 草稿板 ================= */
